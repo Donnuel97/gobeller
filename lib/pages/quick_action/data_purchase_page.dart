@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:gobeller/controller/data_bundle_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../utils/routes.dart';
 
 class DataPurchasePage extends StatefulWidget {
   const DataPurchasePage({super.key});
@@ -17,6 +22,7 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
   List<Map<String, dynamic>> dataPlans = [];
   bool isLoadingPlans = false;
   bool isProcessingPurchase = false;
+  bool _pinVisible = false; // Visibility toggle for PIN
 
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
@@ -27,6 +33,35 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
     {"value": "Glo", "image": "assets/airtime_data/glo-logo.svg"},
     {"value": "9Mobile", "image": "assets/airtime_data/9mobile-logo.svg"},
   ];
+
+  // Dynamically gotten colors
+
+  Color? _primaryColor;
+  Color? _secondaryColor;
+  @override
+  void initState() {
+    super.initState();
+    _loadPrimaryColor();
+  }
+
+  Future<void> _loadPrimaryColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');  // Using the correct key name for settings
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'] ; // Default fallback color
+      final secondaryColorHex = data['customized-app-secondary-color'] ; // Default fallback color
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+      });
+    }
+  }
+
 
   @override
   void dispose() {
@@ -71,36 +106,25 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
 
     setState(() => isProcessingPurchase = true);
 
-    try {
-      await Provider.of<DataBundleController>(context, listen: false).buyDataBundle(
-        networkProvider: selectedNetwork!,
-        dataPlan: selectedPlan!,
-        phoneNumber: phoneController.text,
-        pin: pinController.text,
-        context: context,
-      );
+    final result = await Provider.of<DataBundleController>(context, listen: false).buyDataBundle(
+      networkProvider: selectedNetwork!,
+      dataPlan: selectedPlan!,
+      phoneNumber: phoneController.text,
+      pin: pinController.text,
+    );
 
-      // 🎉 Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Data Purchase Successful!")),
-      );
+    Navigator.pushNamed(
+      context,
+      Routes.data_result,
+      arguments: {
+        'success': result['success'],
+        'message': result['message'],
+      },
+    );
 
-      // 🔄 Clear the form after success
-      setState(() {
-        phoneController.clear();
-        pinController.clear();
-        selectedNetwork = null;
-        selectedPlan = null;
-        dataPlans = [];
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Purchase Failed: $e")),
-      );
-    } finally {
-      setState(() => isProcessingPurchase = false);
-    }
+    setState(() => isProcessingPurchase = false);
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -204,16 +228,27 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
 
             const SizedBox(height: 24),
 
-            // **Transaction PIN Input**
+            // **Transaction PIN Input with Visibility Toggle**
             TextFormField(
               controller: pinController,
-              obscureText: true,
+              obscureText: !_pinVisible,  // Pin visibility toggle
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              maxLength: 4,  // Limit PIN length to 4
+              decoration: InputDecoration(
                 labelText: "Transaction PIN",
                 hintText: "Enter your PIN",
-                prefixIcon: Icon(Icons.lock),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _pinVisible ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _pinVisible = !_pinVisible;  // Toggle PIN visibility
+                    });
+                  },
+                ),
               ),
             ),
 
@@ -223,7 +258,7 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
             ElevatedButton(
               onPressed: isProcessingPurchase ? null : _purchaseData,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEB6D00), // HEX color for background
+                backgroundColor: _primaryColor, // HEX color for background
                 foregroundColor: Colors.white, // Text color set to white
                 padding: const EdgeInsets.all(15), // Optional: Adds better spacing
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Optional: Rounded corners

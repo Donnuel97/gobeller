@@ -10,6 +10,8 @@ import 'controller/WalletTransactionController.dart';
 import 'controller/wallet_to_bank_controller.dart';
 import 'controller/wallet_transfer_controller.dart';
 import 'controller/registration_controller.dart';
+import 'controller/organization_controller.dart';
+import 'controller/cards_controller.dart';
 import 'utils/navigator_key.dart';
 import 'themes/color_schemes.dart';
 import 'themes/input_decoration_theme.dart';
@@ -34,12 +36,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => WalletToBankTransferController()),
         ChangeNotifierProvider(create: (context) => WalletTransferController()),
         ChangeNotifierProvider(create: (context) => NinVerificationController()),
+        ChangeNotifierProvider(create: (_) => OrganizationController()),
+        ChangeNotifierProvider(create: (context) => VirtualCardController()),
       ],
       child: Consumer<DarkModeProvider>(
         builder: (context, darkMode, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'Gobeller',
+            title: 'SDDTIF',
             navigatorKey: navigatorKey,
             themeMode: darkMode.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             theme: ThemeData(

@@ -107,13 +107,15 @@ class WalletToBankTransferController with ChangeNotifier {
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
-      if (response["status"] == true) {
-        _sourceWallets = (response["data"]["data"] as List).map((wallet) {
+      if (response["status"] == true && response["data"]?["data"] != null) {
+        final List wallets = response["data"]["data"];
+
+        _sourceWallets = wallets.map((wallet) {
           return {
-            "account_number": wallet["wallet_number"],
-            "available_balance": wallet["balance"],
-            "currency_symbol": wallet["currency"]["symbol"],
-            "wallet_type": wallet["wallet_type"]["name"],
+            "account_number": wallet["wallet_number"] ?? "",
+            "available_balance": wallet["balance"] ?? "0.00",
+            "currency_symbol": wallet["currency"]?["symbol"] ?? "₦",
+            "wallet_type": wallet["wallet_type"]?["name"] ?? "Default Wallet",
           };
         }).toList();
       } else {
@@ -121,6 +123,7 @@ class WalletToBankTransferController with ChangeNotifier {
         _sourceWallets = [];
       }
     } catch (e) {
+      print("Error fetching wallets: $e");
       _transactionMessage = "❌ Error fetching wallets. Please try again.";
       _sourceWallets = [];
     }
@@ -128,6 +131,7 @@ class WalletToBankTransferController with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
 
   /// **Verifies a bank account before processing transfer**
   Future<void> verifyBankAccount({
@@ -172,7 +176,7 @@ class WalletToBankTransferController with ChangeNotifier {
     required String accountNumber,
     required double amount,
     required String narration,
-  }) async {
+    }) async {
     _isProcessing = true;
     notifyListeners();
 
@@ -215,7 +219,7 @@ class WalletToBankTransferController with ChangeNotifier {
   /// **Fetch authentication token**
 
   /// **Complete the Wallet to Bank Transfer**
-  Future<void> completeBankTransfer({
+  Future<Map<String, dynamic>> completeBankTransfer({
     required String sourceWallet,
     required String destinationAccountNumber,
     required String bankId,
@@ -232,7 +236,7 @@ class WalletToBankTransferController with ChangeNotifier {
         _transactionMessage = "❌ You are not logged in. Please log in to continue.";
         _isProcessing = false;
         notifyListeners();
-        return;
+        return {"success": false, "message": _transactionMessage};
       }
 
       final requestBody = {
@@ -241,7 +245,7 @@ class WalletToBankTransferController with ChangeNotifier {
         "bank_id": bankId,
         "amount": amount,
         "description": description.isNotEmpty ? description : "Wallet to Bank Transfer",
-        "transaction_pin": transactionPin
+        "transaction_pin": transactionPin,
       };
 
       final response = await ApiService.postRequest(
@@ -251,17 +255,24 @@ class WalletToBankTransferController with ChangeNotifier {
       );
 
       if (response["status"] == true) {
-        _transactionMessage = "✅ Your transfer was successful! Funds have been sent to the bank.";
+        _transactionMessage = response["message"] ?? "✅ Your transfer was successful! Funds have been sent to the bank.";
+        _isProcessing = false;
+        notifyListeners();
+        return {"success": true, "message": _transactionMessage};
       } else {
-        _transactionMessage = "❌ Transfer failed. Please check your details and try again.";
+        _transactionMessage = response["message"] ?? "❌ Transfer failed. Please check your details and try again.";
+        _isProcessing = false;
+        notifyListeners();
+        return {"success": false, "message": _transactionMessage};
       }
     } catch (e) {
       _transactionMessage = "❌ We encountered an error while processing the transfer. Please try again.";
+      _isProcessing = false;
+      notifyListeners();
+      return {"success": false, "message": _transactionMessage};
     }
-
-    _isProcessing = false;
-    notifyListeners();
   }
+
 
 
 }

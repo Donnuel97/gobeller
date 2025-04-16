@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:gobeller/controller/airtime_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../utils/routes.dart';
 
 class BuyAirtimePage extends StatefulWidget {
   const BuyAirtimePage({super.key});
@@ -17,6 +22,34 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
   final TextEditingController pinController = TextEditingController();
   String? selectedNetwork;
   bool isProcessing = false;
+  bool isPinVisible = false;
+
+  Color? _primaryColor;
+  Color? _secondaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrimaryColor();
+  }
+
+  Future<void> _loadPrimaryColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'];
+      final secondaryColorHex = data['customized-app-secondary-color'];
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+      });
+    }
+  }
 
   final List<Map<String, String>> networks = [
     {"value": "MTN", "image": "assets/airtime_data/mtn-logo.svg"},
@@ -38,42 +71,71 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
         phoneController.text.isEmpty ||
         amountController.text.isEmpty ||
         pinController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please fill all fields")),
-      );
+      _navigateToResultPage(false, "⚠️ Please fill all fields");
+      return;
+    }
+
+    final double amount = double.tryParse(amountController.text) ?? 0;
+    if (amount < 50) {
+      _navigateToResultPage(false, "💰 Minimum airtime amount is ₦50.");
+      return;
+    }
+
+    if (pinController.text.length != 4) {
+      _navigateToResultPage(false, "🔒 PIN must be exactly 4 digits");
       return;
     }
 
     setState(() => isProcessing = true);
 
-    try {
-      await Provider.of<AirtimeController>(context, listen: false).buyAirtime(
-        networkProvider: selectedNetwork!,
-        phoneNumber: phoneController.text,
-        amount: amountController.text,
-        pin: pinController.text,
-        context: context,
-      );
+    final result = await Provider.of<AirtimeController>(context, listen: false).buyAirtime(
+      networkProvider: selectedNetwork!,
+      phoneNumber: phoneController.text,
+      amount: amountController.text,
+      pin: pinController.text,
+    );
 
-      // 🎉 Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Airtime Purchase Successful!")),
-      );
+    setState(() {
+      isProcessing = false;
+      phoneController.clear();
+      amountController.clear();
+      pinController.clear();
+      selectedNetwork = null;
+    });
 
-      // 🔄 Clear the form after success
-      setState(() {
-        phoneController.clear();
-        amountController.clear();
-        pinController.clear();
-        selectedNetwork = null;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Purchase Failed: $e")),
-      );
-    } finally {
-      setState(() => isProcessing = false);
-    }
+    _navigateToResultPage(result['success'], result['message']);
+  }
+
+  void _navigateToResultPage(bool success, String message) {
+    Navigator.pushNamed(
+      context,
+      Routes.airtime_result,
+      arguments: {
+        'success': success,
+        'message': message,
+      },
+    );
+  }
+
+
+
+
+
+
+  void _showDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK")
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -85,12 +147,10 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // **Network Selection**
-            const Text(
-              "Select Network:",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text("Select Network:",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: networks.map((provider) {
@@ -132,7 +192,6 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
 
             const SizedBox(height: 24),
 
-            // **Phone Number Input**
             const Text("Phone Number:",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -152,7 +211,6 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
 
             const SizedBox(height: 24),
 
-            // **Amount Input**
             const Text("Amount (₦):",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -160,46 +218,53 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
               controller: amountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: "Enter amount",
+                labelText: "Enter amount (min ₦50)",
                 prefixIcon: Icon(Icons.money),
                 border: OutlineInputBorder(),
               ),
             ),
 
+
             const SizedBox(height: 24),
 
-            // **Transaction PIN Input**
             const Text("Transaction PIN:",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextFormField(
               controller: pinController,
-              obscureText: true,
+              obscureText: !isPinVisible,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Enter your PIN",
-                prefixIcon: Icon(Icons.lock),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(isPinVisible ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () {
+                    setState(() => isPinVisible = !isPinVisible);
+                  },
+                ),
               ),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ],
             ),
 
             const SizedBox(height: 24),
 
-            // **Buy Airtime Button**
             ElevatedButton(
               onPressed: isProcessing ? null : _buyAirtime,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.all(15),
-                backgroundColor: const Color(0xFFEB6D00), // HEX color for background
-                foregroundColor: Colors.white, // Text color set to white
+                backgroundColor: _primaryColor ?? Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: isProcessing
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text("Buy Airtime", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-
-
           ],
         ),
       ),

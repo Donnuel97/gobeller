@@ -22,7 +22,8 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   String? selectedBank;
   String? selectedBankId;
 
-  bool isLoading = false; // Flag to manage loading spinner state
+  bool isLoading = false;
+
 
   @override
   void initState() {
@@ -31,9 +32,10 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
       controller.fetchBanks();
       controller.fetchSourceWallets();
-      _resetForm(); // Reset the form and clear beneficiary name when opening the page
+      _resetForm();
     });
   }
+
 
   @override
   void dispose() {
@@ -105,32 +107,38 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   void _confirmTransfer() async {
     final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
     setState(() {
-      isLoading = true; // Start loading spinner overlay
+      isLoading = true;
     });
 
-    Navigator.pop(context); // Close summary modal
+    Navigator.pop(context);
 
-    // Start the transfer process
     await controller.completeBankTransfer(
       sourceWallet: selectedSourceWallet!,
       destinationAccountNumber: _accountNumberController.text,
       bankId: selectedBankId!,
       amount: double.parse(_amountController.text.replaceAll(",", "")),
-      description: _narrationController.text, // This is where the narration gets passed
+      description: _narrationController.text,
       transactionPin: _pinController.text,
     );
 
     setState(() {
-      isLoading = false; // Stop loading spinner overlay
+      isLoading = false;
     });
 
     if (!mounted) return;
-    _showResultDialog(controller.transactionMessage);
+    Navigator.pushNamed(
+      context,
+      '/bank_result',
+      arguments: {
+        'success': controller.transactionMessage.contains("✅"),
+        'message': controller.transactionMessage,
+      },
+    );
+
+    // _showResultDialog(controller.transactionMessage);
   }
 
   void _showResultDialog(String message) {
-    debugPrint("🔹 Transaction Message: $message"); // Log the message to the console
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -141,8 +149,18 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              _resetForm();
+              Navigator.pop(context); // Close dialog
+
+              if (message.contains("✅")) {
+                // If successful, reload the page (reset everything)
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
+                  controller.fetchBanks();
+                  controller.fetchSourceWallets();
+                  controller.clearBeneficiaryName();
+                });
+                _resetForm();
+              }
             },
             child: const Text("OK"),
           ),
@@ -150,6 +168,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       ),
     );
   }
+
 
   void _resetForm() {
     _formKey.currentState?.reset();
@@ -163,7 +182,6 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       selectedBankId = null;
     });
 
-    // Clear the beneficiary name
     final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
     controller.clearBeneficiaryName();
   }
@@ -254,6 +272,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
 
+
                     const SizedBox(height: 16),
 
                     const Text("Amount"),
@@ -279,7 +298,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                     const SizedBox(height: 16),
 
                     SizedBox(
-                      width: double.infinity, // Makes the button full-width
+                      width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
@@ -287,11 +306,11 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEB6D00), // Set button color to #EB6D00
-                          foregroundColor: Colors.white, // White text color
-                          padding: const EdgeInsets.symmetric(vertical: 16), // Vertical padding for better UX
+                          backgroundColor: const Color(0xFFEB6D00),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8), // Optional: rounded corners
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: const Text(
@@ -300,10 +319,6 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                         ),
                       ),
                     ),
-
-
-
-
                   ],
                 ),
               ),

@@ -1,8 +1,44 @@
-import 'package:flutter/material.dart';
-import 'package:gobeller/utils/routes.dart'; // Import Routes
+import 'dart:convert';
 
-class QuickActionsGrid extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/utils/routes.dart';
+
+class QuickActionsGrid extends StatefulWidget {
   const QuickActionsGrid({super.key});
+
+  @override
+  State<QuickActionsGrid> createState() => _QuickActionsGridState();
+}
+
+class _QuickActionsGridState extends State<QuickActionsGrid> {
+  Color? _primaryColor;
+  Color? _secondaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSecondaryColor();
+  }
+
+  // Fetch colors from SharedPreferences
+  Future<void> _loadSecondaryColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');  // Using the correct key name for settings
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'] ?? '#171E3B'; // Default fallback color
+      final secondaryColorHex = data['customized-app-secondary-color'] ?? '#EB6D00'; // Default fallback color
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +56,7 @@ class QuickActionsGrid extends StatelessWidget {
             _buildMenuCard(context, icon: Icons.wifi, label: "Data", route: Routes.data_purchase),
             _buildMenuCard(context, icon: Icons.tv, label: "Cable", route: Routes.cable_tv),
             _buildMenuCard(context, icon: Icons.lightbulb, label: "Electric", route: Routes.electric),
-            _buildMenuCard(context, icon: Icons.monetization_on, label: "MoMo"),
+            _buildMenuCard(context, icon: Icons.monetization_on, label: "MoMo", route: Routes.reg_success),
           ],
         );
       },
@@ -44,8 +80,8 @@ class QuickActionsGrid extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: const Color(0xFFEB6D00).withOpacity(0.1), // Light orange background
-            child: Icon(icon, size: 28, color: const Color(0xFFEB6D00)), // Icon color set to #eb6d00
+            backgroundColor: _primaryColor?.withOpacity(0.1),
+            child: Icon(icon, size: 28, color: _primaryColor),
           ),
           const SizedBox(height: 6),
           Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
@@ -54,7 +90,6 @@ class QuickActionsGrid extends StatelessWidget {
     );
   }
 
-  // Function to show modal bottom sheet for Transfer options
   void _showTransferOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -71,7 +106,7 @@ class QuickActionsGrid extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: const Icon(Icons.account_balance_wallet, color: Color(0xFFEB6D00)), // Icon color updated
+                leading: Icon(Icons.account_balance_wallet, color: _secondaryColor),
                 title: const Text("Wallet to Wallet"),
                 onTap: () {
                   Navigator.pop(context);
@@ -79,7 +114,7 @@ class QuickActionsGrid extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.account_balance, color: Color(0xFFEB6D00)), // Icon color updated
+                leading: Icon(Icons.account_balance, color: _secondaryColor),
                 title: const Text("Wallet to Bank"),
                 onTap: () {
                   Navigator.pop(context);

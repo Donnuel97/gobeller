@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gobeller/controller/WalletTransactionController.dart';
 import 'transaction_tile.dart';
+import 'package:gobeller/utils/routes.dart';
 
 class TransactionList extends StatefulWidget {
   const TransactionList({super.key});
@@ -66,7 +67,7 @@ class _TransactionListState extends State<TransactionList> {
                     ),
                     ListTile(
                       title: const Text("Amount"),
-                      subtitle: Text("${transaction["user_wallet"]["currency"]["symbol"]}${transaction["user_amount"] ?? "0.00"}"),
+                      subtitle: Text("${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
                     ),
                     ListTile(
                       title: const Text("Date"),
@@ -99,6 +100,7 @@ class _TransactionListState extends State<TransactionList> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final transactionController = Provider.of<WalletTransactionController>(context);
     final transactions = transactionController.transactions;
@@ -109,16 +111,17 @@ class _TransactionListState extends State<TransactionList> {
         ? (_showFullTransactions ? transactions.length : (transactions.length < 3 ? transactions.length : 3))
         : 0;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return SizedBox( // This ensures full width inside a Column
+      width: double.infinity,
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// **Header with "See More" Button**
+              /// Header with "See More" Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -129,40 +132,43 @@ class _TransactionListState extends State<TransactionList> {
                   if (hasTransactions)
                     TextButton(
                       onPressed: () {
-                        setState(() {
-                          _showFullTransactions = !_showFullTransactions;
-                        });
+                        Navigator.pushNamed(context, Routes.history);
                       },
-                      child: Text(_showFullTransactions ? "See Less" : "See More"),
-                    ),
+                      child: const Text("View All"),
+                    )
                 ],
               ),
               const Divider(),
 
-              /// **Loading State**
+              /// Loading State
               if (isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: CircularProgressIndicator(),
+                  child: Center(child: CircularProgressIndicator()),
                 )
 
-              /// **No Transactions Message**
+              /// No Transactions Message
               else if (!hasTransactions)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Column(
-                    children: [
-                      Icon(Icons.receipt_long, size: 50, color: Colors.grey.shade400),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "No transactions available",
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
+                SizedBox(
+                  height: 200, // Adjust height as needed
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long, size: 50, color: Colors.grey.shade400),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "No transactions available",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
                   ),
                 )
 
-              /// **Transaction List with Limited Fields**
+
+
+              /// Transaction List
               else
                 ListView.builder(
                   shrinkWrap: true,
@@ -170,13 +176,14 @@ class _TransactionListState extends State<TransactionList> {
                   itemCount: displayedTransactions,
                   itemBuilder: (context, index) {
                     final transaction = transactions[index];
+                    String formattedAmount = (double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2);
                     return GestureDetector(
-                      onTap: () => _showTransactionDetails(transaction), // Show modal on click
+                      onTap: () => _showTransactionDetails(transaction),
                       child: TransactionTile(
-                        type: transaction["transaction_type"] ?? "Unknown", // Use "debit" or "credit"
-                        amount: transaction["user_amount"] ?? "0.00", // Show amount
-                        date: transaction["created_at"] ?? "Unknown", // Show date
-                        currencySymbol: transaction["user_wallet"]["currency"]["symbol"] ?? "₦", // Use correct currency symbol
+                        type: transaction["transaction_type"] ?? "Unknown",
+                        amount: formattedAmount,
+                        date: transaction["created_at"] ?? "Unknown",
+                        currencySymbol: transaction["user_wallet"]["currency"]["symbol"] ?? "₦",
                       ),
                     );
                   },
@@ -187,4 +194,5 @@ class _TransactionListState extends State<TransactionList> {
       ),
     );
   }
+
 }

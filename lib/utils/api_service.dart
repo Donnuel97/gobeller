@@ -14,20 +14,20 @@ class ApiService {
     return '$baseUrl$basePath$endpoint';
   }
 
-  // Generic GET request
-  // Generic GET request with additional headers
+  // ✅ Generic GET request
   static Future<Map<String, dynamic>> getRequest(String endpoint, {Map<String, String>? extraHeaders}) async {
     final url = _buildUrl(endpoint);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('access_token');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    final defaultHeaders = await ConstApi.getHeaders(); // ✅ Fetch headers dynamically
 
     try {
       final response = await http.get(
         Uri.parse(url),
         headers: {
-          ...ConstApi.headers,  // Default headers
-          if (token != null) 'Authorization': 'Bearer $token',  // Include token if available
-          if (extraHeaders != null) ...extraHeaders,  // Include any extra headers passed to the method
+          ...defaultHeaders,
+          if (token != null) 'Authorization': 'Bearer $token',
+          if (extraHeaders != null) ...extraHeaders,
         },
       );
       return _handleResponse(response);
@@ -36,21 +36,20 @@ class ApiService {
     }
   }
 
-
-  // Generic POST request
+  // ✅ Generic POST request
   static Future<Map<String, dynamic>> postRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
     final url = _buildUrl(endpoint);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('access_token');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    final defaultHeaders = await ConstApi.getHeaders(); // ✅ Fetch headers dynamically
 
     try {
       final response = await http.post(
         Uri.parse(url),
         headers: {
-          ...ConstApi.headers,
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           if (token != null) 'Authorization': 'Bearer $token',
-          if (extraHeaders != null) ...extraHeaders,  // ✅ Allow extra headers
+          if (extraHeaders != null) ...extraHeaders,
         },
         body: jsonEncode(formData),
       );
@@ -65,20 +64,20 @@ class ApiService {
     try {
       final responseData = json.decode(response.body);
 
-      // Handle authentication error (401)
       if (response.statusCode == 401 || responseData['message'] == 'Unauthenticated.') {
         navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
-        return {'status': 'error', 'message': 'User unauthenticated. Redirecting to login.'};
+        return {'status': false, 'message': '⚠️ Session expired. Please log in again.'};
       }
 
-      // Handle other status codes (e.g., 500, 404)
-      if (response.statusCode != 200) {
-        return {'status': 'error', 'message': 'Request failed with status: ${response.statusCode}'};
+      // Return the actual response regardless of statusCode
+      if (responseData is Map<String, dynamic>) {
+        return responseData;
+      } else {
+        return {'status': false, 'message': '⚠️ Unexpected response format.'};
       }
-
-      return responseData;
     } catch (e) {
-      return {'status': 'error', 'message': 'Response parsing error: $e'};
+      return {'status': false, 'message': '❌ Failed to parse response: $e'};
     }
   }
+
 }

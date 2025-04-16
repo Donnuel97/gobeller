@@ -1,10 +1,18 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ConstApi {
   static const String baseUrl = 'https://app.gobeller.com';
   static const String basePath = '/api/v1';
 
-  // Required headers
-  static const Map<String, String> headers = {
-    'AppID': '9d4558d8-5d4f-4e85-a8c1-bccee25e022b',
-    'Accept': 'application/json',
-  };
+  /// Dynamically get headers with AppID from SharedPreferences
+  static Future<Map<String, String>> getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final appId = prefs.getString('appId') ?? '';
+
+    return {
+      'AppID': appId,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+  }
 }

@@ -43,11 +43,24 @@ dependencies:
   lucide_icons: ^0.257.0
   flutter_secure_storage: ^9.2.4
   flutter_svg: ^2.0.17
+  flutter_password_strength: ^0.1.6
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  path_provider: ^2.0.9 # For saving the icon locally
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png" # Your logo file path
+  adaptive_icon_background: "#FFFFFF" # White background
+#  adaptive_icon_foreground: "assets/icon/icon_foreground.png" # Optional: foreground image, can be left out if not needed
+#  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -73,6 +86,12 @@ flutter:
     - assets/airtime_data/airtel-logo.svg
     - assets/airtime_data/glo-logo.svg
     - assets/airtime_data/9mobile-logo.svg
+    - assets/cable/showmax.png
+    - assets/cable/startimes.png
+    - assets/cable/gotv.png
+    - assets/cable/dstv.png
+    - assets/male.png
+    - assets/female.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

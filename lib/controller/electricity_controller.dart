@@ -120,7 +120,7 @@ class ElectricityController with ChangeNotifier {
       debugPrint("🔹 Meter Verification API Response: $response");
 
       if (response["status"] == true) {
-        _meterOwnerName = response["data"]["name"];
+        _meterOwnerName = response["data"]["meter_name"];
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("✅ Meter Verified: $_meterOwnerName")),
         );
@@ -141,14 +141,13 @@ class ElectricityController with ChangeNotifier {
   }
 
   /// Purchase Electricity
-  Future<void> purchaseElectricity({
+  Future<Map<String, dynamic>> purchaseElectricity({
     required String meterNumber,
     required String electricityDisco,
     required String meterType,
     required String amount,
     required String phoneNumber,
     required String pin,
-    required BuildContext context,
   }) async {
     _isPurchasing = true;
     notifyListeners();
@@ -156,53 +155,54 @@ class ElectricityController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Authentication required. Please log in again.")),
-        );
-        _isPurchasing = false;
-        notifyListeners();
-        return;
+        return {'success': false, 'message': '🔒 You’ve been logged out. Please log in again.'};
       }
 
       final String endpoint = "/transactions/buy-electricity";
       final Map<String, String> headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
         "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "AppID": appId,
       };
 
       final Map<String, dynamic> body = {
         "meter_number": meterNumber,
         "electricity_disco": electricityDisco,
         "meter_type": meterType,
-        "final_amount": amount,
+        "final_amount": double.tryParse(amount) ?? 0,
         "phone_number": phoneNumber,
         "transaction_pin": pin,
       };
 
-      debugPrint("📤 Sending Electricity Purchase Request: ${jsonEncode(body)}");
-
       final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
-      debugPrint("🔹 Electricity Purchase API Response: $response");
+      final status = response["status"];
+      final message = (response["message"] ?? "").toString().trim();
 
-      if (response["status"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ Purchase Successful: ${response["message"]}")),
-        );
+      if (status == true) {
+        return {'success': true, 'message': '⚡️ Electricity purchased successfully!'};
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ Error: ${response["message"]}"), backgroundColor: Colors.red),
-        );
+        String friendlyMessage = "❌ Something went wrong.";
+        if (message.toLowerCase().contains("invalid pin")) {
+          friendlyMessage = "🔐 Your transaction PIN is incorrect.";
+        } else if (message.toLowerCase().contains("insufficient")) {
+          friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
+        } else if (message.toLowerCase().contains("unauthenticated")) {
+          friendlyMessage = "🔒 Session expired. Please log in again.";
+        } else if (message.isNotEmpty) {
+          friendlyMessage = message;
+        }
+
+        return {'success': false, 'message': friendlyMessage};
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Purchase failed: $e"), backgroundColor: Colors.red),
-      );
+      return {'success': false, 'message': '🌐 Network error occurred. Please try again.'};
+    } finally {
+      _isPurchasing = false;
+      notifyListeners();
     }
-
-    _isPurchasing = false;
-    notifyListeners();
   }
+
 }

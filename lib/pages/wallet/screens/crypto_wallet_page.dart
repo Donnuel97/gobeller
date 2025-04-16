@@ -1,49 +1,57 @@
 import 'package:flutter/material.dart';
-import 'widget/wallet_list.dart';
+import 'package:lucide_icons/lucide_icons.dart'; // Optional icon package
 
 class CryptoWalletPage extends StatelessWidget {
   const CryptoWalletPage({super.key});
 
-  final List<Map<String, dynamic>> wallets = const [
-    {"name": "Bitcoin Wallet", "balance": 0.025, "currency": "BTC"},
-    {"name": "Ethereum Wallet", "balance": 1.2, "currency": "ETH"},
-    {"name": "USDT Wallet", "balance": 500.00, "currency": "USDT"},
-  ];
-
-  void _createNewWallet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Crypto Wallet creation feature coming soon!")),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Crypto Wallets")),
-      body: Column(
-        children: [
-          Expanded(child: WalletList(wallets: wallets)), // List of wallets
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity, // Full width
-              height: 50, // Consistent height
-              child: ElevatedButton(
-                onPressed: () => _createNewWallet(context),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30), // Pill shape
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  "Create New Crypto Wallet",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      appBar: AppBar(
+        title: const Text("Crypto Wallets"),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.wallet, // Use any relevant icon (from lucide or default)
+                size: 100,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "Coming Soon!",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                "We're working hard to bring you secure and easy-to-use crypto wallets. Stay tuned!",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text("Go Back"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

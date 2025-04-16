@@ -8,42 +8,48 @@ class WalletController {
   static Future<Map<String, String>> fetchWallets() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token'); // Get the stored token
+      final String? token = prefs.getString('auth_token');
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
-        return {};  // If no token is found, return an empty map
+        return {};
       }
 
       final extraHeaders = {
-        'Authorization': 'Bearer $token',  // Include the token in the Authorization header
+        'Authorization': 'Bearer $token',
       };
 
       final response = await ApiService.getRequest(
-        "/customers/wallets?page=1&items_per_page=15",
-        extraHeaders: extraHeaders, // Corrected the parameter name to 'extraHeaders'
+        "/customers/wallets",
+        extraHeaders: extraHeaders,
       );
 
       debugPrint("🔹 Wallets API Response: $response");
 
-      // Assuming the API returns a response in this structure:
       if (response["status"] == true) {
-        // Extract wallet data and return wallet number and balance
-        var walletData = response["data"]["data"][0];  // Assuming first wallet in the response
-        String walletNumber = walletData["wallet_number"];
-        String balance = walletData["balance"];
+        List<dynamic> walletList = response["data"]["data"];
 
-        return {
-          'wallet_number': walletNumber,
-          'balance': balance,
-        };
+        if (walletList.isNotEmpty) {
+          var walletData = walletList[0];  // Safe access now
+          String walletNumber = walletData["wallet_number"];
+          String balance = walletData["balance"];
+
+          return {
+            'wallet_number': walletNumber,
+            'balance': balance,
+          };
+        } else {
+          debugPrint("ℹ️ No wallets found.");
+          return {};
+        }
       } else {
         debugPrint("Error: ${response["message"]}");
-        return {}; // Return an empty map in case of an error
+        return {};
       }
     } catch (e) {
       debugPrint("❌ Wallets API Error: $e");
-      return {};  // Return an empty map in case of an error
+      return {};
     }
   }
+
 }

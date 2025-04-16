@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:gobeller/controller/cable_tv_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../utils/routes.dart';
 
 class CableTVPage extends StatefulWidget {
   const CableTVPage({super.key});
@@ -11,6 +16,8 @@ class CableTVPage extends StatefulWidget {
 }
 
 class _CableTVPageState extends State<CableTVPage> {
+  bool isProcessing = false; // 🔥 Add this line
+
   final TextEditingController smartCardController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -20,11 +27,41 @@ class _CableTVPageState extends State<CableTVPage> {
   String? selectedApiKey;
 
   final List<Map<String, dynamic>> cableProviders = [
-    {"name": "DStv", "image": "assets/cable_tv/dstv-logo.svg", "apiKey": "dstv"},
-    {"name": "GOtv", "image": "assets/cable_tv/gotv-logo.svg", "apiKey": "gotv"},
-    {"name": "StarTimes", "image": "assets/cable_tv/startimes-logo.svg", "apiKey": "startimes"},
-    {"name": "Showmax", "image": "assets/cable_tv/showmax-logo.svg", "apiKey": "showmax"},
+    {"name": "DStv", "image": "assets/cable/dstv.png", "apiKey": "dstv"},
+    {"name": "GOtv", "image": "assets/cable/gotv.png", "apiKey": "gotv"},
+    {"name": "StarTimes", "image": "assets/cable/startimes.png", "apiKey": "startimes"},
+    {"name": "Showmax", "image": "assets/cable/showmax.png", "apiKey": "showmax"},
   ];
+
+
+  // Dynamically gotten colors
+
+  Color? _primaryColor;
+  Color? _secondaryColor;
+  @override
+  void initState() {
+    super.initState();
+    _loadPrimaryColor();
+  }
+
+  Future<void> _loadPrimaryColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');  // Using the correct key name for settings
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'] ; // Default fallback color
+      final secondaryColorHex = data['customized-app-secondary-color'] ; // Default fallback color
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+      });
+    }
+  }
+
 
   @override
   void dispose() {
@@ -102,8 +139,7 @@ class _CableTVPageState extends State<CableTVPage> {
                 labelText: "Enter Smart Card/IUC Number",
                 prefixIcon: const Icon(Icons.credit_card),
                 border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.check),
+                suffixIcon: TextButton(
                   onPressed: selectedApiKey == null
                       ? null
                       : () {
@@ -113,9 +149,18 @@ class _CableTVPageState extends State<CableTVPage> {
                       context,
                     );
                   },
+                  child: const Text(
+                    "Verify",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green, // ✅ Green text
+                    ),
+                  ),
                 ),
+
               ),
             ),
+
 
             const SizedBox(height: 24),
             Consumer<CableTVController>(
@@ -166,17 +211,29 @@ class _CableTVPageState extends State<CableTVPage> {
             ),
 
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: cableTVController.isLoading
-                  ? null
-                  : () async {
-                if (selectedApiKey != null &&
-                    smartCardController.text.isNotEmpty &&
-                    selectedPlan != null &&
-                    phoneController.text.isNotEmpty &&
-                    pinController.text.isNotEmpty) {
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: cableTVController.isLoading || isProcessing
+                    ? null
+                    : () async {
+                  if (selectedApiKey == null ||
+                      selectedPlan == null ||
+                      smartCardController.text.isEmpty ||
+                      phoneController.text.isEmpty ||
+                      pinController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("⚠️ Please fill all fields correctly!"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
 
-                  await cableTVController.subscribeToCableTV(
+                  setState(() => isProcessing = true);
+
+                  final result = await cableTVController.subscribeToCableTV(
                     cableTvType: selectedApiKey!,
                     smartCardNumber: smartCardController.text.trim(),
                     subscriptionPlan: selectedPlan!,
@@ -185,38 +242,34 @@ class _CableTVPageState extends State<CableTVPage> {
                     context: context,
                   );
 
-                  // Clear form after a short delay (UI update safety)
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    clearForm();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("✅ Subscription Successful!"),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("⚠️ Please fill all fields correctly!"),
-                      backgroundColor: Colors.red,
-                    ),
+                  if (!context.mounted) return;
+
+                  Navigator.pushNamed(
+                    context,
+                    Routes.cable_result,
+                    arguments: {
+                      'success': result['success'],
+                      'message': result['message'],
+                    },
                   );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEB6D00), // HEX color for background
-                foregroundColor: Colors.white, // Text color set to white
-                padding: const EdgeInsets.all(15), // Better spacing
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Rounded corners
-              ),
-              child: cableTVController.isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                "Subscribe",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+
+                  setState(() => isProcessing = false);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: cableTVController.isLoading || isProcessing
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                  "Subscribe",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
+
 
           ],
         ),

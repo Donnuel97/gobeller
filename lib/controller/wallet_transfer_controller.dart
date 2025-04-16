@@ -56,6 +56,29 @@ class WalletTransferController with ChangeNotifier {
     _beneficiaryName = "";
     notifyListeners();
   }
+
+  /// **Reset controller state** to initial values
+  void resetState() {
+    _isLoading = false;
+    _isProcessing = false;
+    _isVerifyingWallet = false;
+    _sourceWallets = [];
+    _isInitialized = false;
+    _transactionMessage = "";
+    _beneficiaryName = "";
+    _amountProcessable = 0.0;
+    _expectedBalanceAfter = 0.0;
+    _transactionCurrency = "NGN";
+    _transactionCurrencySymbol = "₦";
+    _actualBalanceBefore = "0.00";
+    _platformChargeFee = "0.00";
+    _totalAmountProcessable = "0.00";
+    _transactionReference = "";
+    _transactionStatus = "";
+
+    notifyListeners();
+  }
+
   /// **Fetch authentication token**
   Future<String?> _getAuthToken() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -81,20 +104,23 @@ class WalletTransferController with ChangeNotifier {
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
-      if (response["status"] == true) {
-        _sourceWallets = (response["data"]["data"] as List)
-            .map((wallet) => {
-          "account_number": wallet["wallet_number"],
-          "available_balance": wallet["balance"],
-          "currency_symbol": wallet["currency"]["symbol"],
-          "wallet_type": wallet["wallet_type"]["name"]
-        })
-            .toList();
+      if (response["status"] == true && response["data"]?["data"] != null) {
+        final List wallets = response["data"]["data"];
+
+        _sourceWallets = wallets.map((wallet) {
+          return {
+            "account_number": wallet["wallet_number"] ?? "",
+            "available_balance": wallet["balance"] ?? "0.00",
+            "currency_symbol": wallet["currency"]?["symbol"] ?? "₦",
+            "wallet_type": wallet["wallet_type"]?["name"] ?? "Default Wallet"
+          };
+        }).toList();
       } else {
         _transactionMessage = "⚠️ Unable to fetch wallets.";
         _sourceWallets = [];
       }
     } catch (e) {
+      print("Error: $e");
       _transactionMessage = "❌ Error fetching wallets. Please try again.";
       _sourceWallets = [];
     }
@@ -103,12 +129,13 @@ class WalletTransferController with ChangeNotifier {
     notifyListeners();
   }
 
+
   /// **Verifies recipient wallet number**
   Future<void> verifyWalletNumber(String walletNumber) async {
     if (walletNumber.length != 10) return;
 
     _isVerifyingWallet = true;
-    _beneficiaryName = "";
+    _beneficiaryName = ""; // Clear the beneficiary name at the start of the verification
     notifyListeners();
 
     try {
@@ -137,6 +164,7 @@ class WalletTransferController with ChangeNotifier {
     _isVerifyingWallet = false;
     notifyListeners();
   }
+
 
   /// **Initializes transfer process**
   Future<void> initializeTransfer({
@@ -194,13 +222,13 @@ class WalletTransferController with ChangeNotifier {
   }
 
   /// **Completes the transfer using API**
-  Future<void> completeTransfer({
+  Future<Map<String, dynamic>> completeTransfer({
     required String sourceWallet,
     required String destinationWallet,
     required double amount,
     required String description,
     required String transactionPin,
-  }) async {
+    }) async {
     _isProcessing = true;
     notifyListeners();
 
@@ -210,7 +238,7 @@ class WalletTransferController with ChangeNotifier {
         _transactionMessage = "❌ Authentication failed. Please log in.";
         _isProcessing = false;
         notifyListeners();
-        return;
+        return {"success": false, "message": _transactionMessage};
       }
 
       final requestBody = {
@@ -221,29 +249,29 @@ class WalletTransferController with ChangeNotifier {
         "transaction_pin": transactionPin
       };
 
-
-      print("🔹 Sending Request: $requestBody"); // Debugging
-
       final response = await ApiService.postRequest(
         "/customers/wallet-to-wallet-transaction/process",
         requestBody,
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
-      print("🔹 API Response: $response"); // Debugging
-
       if (response["status"] == true) {
         _transactionMessage = response["message"] ?? "✅ Transfer successfully processed!";
+        _isProcessing = false;
+        notifyListeners();
+        return {"success": true, "message": _transactionMessage};
       } else {
         _transactionMessage = response["message"] ?? "❌ Transfer failed.";
+        _isProcessing = false;
+        notifyListeners();
+        return {"success": false, "message": _transactionMessage};
       }
     } catch (e) {
-      print("❌ Error: $e"); // Debugging
       _transactionMessage = "❌ Error processing transfer. Please try again.";
+      _isProcessing = false;
+      notifyListeners();
+      return {"success": false, "message": _transactionMessage};
     }
-
-    _isProcessing = false;
-    notifyListeners();
   }
 
 }

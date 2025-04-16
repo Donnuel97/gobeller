@@ -1,69 +1,90 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:gobeller/utils/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AirtimeController with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  Future<void> buyAirtime({
+  Future<Map<String, dynamic>> buyAirtime({
     required String networkProvider,
     required String phoneNumber,
     required String amount,
     required String pin,
-    required BuildContext context,
-  }) async {
+    }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Retrieve Auth Token from SharedPreferences
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Authentication required. Please log in again.")),
-        );
-        _isLoading = false;
-        notifyListeners();
-        return;
+        return {'success': false, 'message': 'You’ve been logged out. Please log in again.'};
       }
 
-      const String url = "https://app.gobeller.com/api/v1/transactions/buy-airtime";
+      final String endpoint = "/transactions/buy-airtime";
       final Map<String, String> headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token", // Use the saved token
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'AppID': appId,
       };
 
       final Map<String, dynamic> body = {
         "network_provider": networkProvider.toLowerCase(),
-        "final_amount": amount,
+        "final_amount": double.tryParse(amount) ?? 0,
         "phone_number": phoneNumber,
         "transaction_pin": pin,
       };
 
-      final response = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(body));
-      final data = jsonDecode(response.body);
+      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+      final status = response["status"];
+      final message = (response["message"] ?? "").toString().trim();
 
-      if (data["status"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ ${data["message"]}")),
-        );
+      if (status == true) {
+        return {'success': true, 'message': 'Airtime purchased successfully!'};
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ Error: ${data["message"]}"), backgroundColor: Colors.red),
-        );
+        String friendlyMessage = "❌ Something went wrong.";
+        if (message.toLowerCase().contains("invalid pin")) {
+          friendlyMessage = "🔐 Your transaction PIN is incorrect.";
+        } else if (message.toLowerCase().contains("insufficient")) {
+          friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
+        } else if (message.toLowerCase().contains("unauthenticated")) {
+          friendlyMessage = "🔒 Session expired. Please log in again.";
+        } else if (message.isNotEmpty) {
+          friendlyMessage = message;
+        }
+
+        return {'success': false, 'message': friendlyMessage};
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Request failed: $e"), backgroundColor: Colors.red),
-      );
+      return {'success': false, 'message': 'Network error occurred. Please try again.'};
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
 
+  void _finishLoading() {
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _showDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            child: const Text("OK"),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 }

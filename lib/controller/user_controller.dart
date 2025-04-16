@@ -15,24 +15,45 @@ class UserController {
       debugPrint("🔹 Login API Response: $response");
 
       if (response["status"] == true) {
-        // Save the token to SharedPreferences
         final String token = response["data"]["token"];
         final SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);  // Store the token
+        await prefs.setString('auth_token', token);
 
-        // Optionally, you can store other user data as well
         final String userData = json.encode(response["data"]["profile"]);
         await prefs.setString('user', userData);
 
         return "Successfully logged in";
       } else {
-        return response["message"] ?? "Login failed";
+        final message = response["message"]?.toString().toLowerCase() ?? "";
+
+        if (message.contains("422")) {
+          return "Invalid username or password. Please try again.";
+        } else if (message.contains("invalid") || message.contains("unauthorized")) {
+          return "Incorrect credentials. Double-check your info and try again.";
+        } else {
+          return response["message"] ?? "Login failed. Please try again.";
+        }
       }
-    } catch (e) {
+    } on FormatException {
+      return "Unexpected response format. Please try again later.";
+    } on Exception catch (e) {
       debugPrint("❌ Login API Error: $e");
-      return "An error occurred";
+
+      final error = e.toString().toLowerCase();
+
+      if (error.contains("socketexception") || error.contains("failed host lookup")) {
+        return "Unable to connect to our servers. Please check your internet connection and try again.";
+      } else if (error.contains("clientexception")) {
+        return "Could not reach the server. It might be down or unreachable right now.";
+      } else {
+        return "Something went wrong. Please try again shortly.";
+      }
     }
   }
+
+
+
+
 
   // Logout user
   static Future<bool> logoutAuthenticatedUser() async {
@@ -60,26 +81,3 @@ class UserController {
     return prefs.getString('auth_token');  // Retrieve the token from SharedPreferences
   }
 }
-// class WalletController {
-//   // Fetch wallets from the API and print the response to the debugger
-//   static Future<void> fetchWallets() async {
-//     try {
-//       // Make the GET request to the wallets endpoint
-//       final response = await ApiService.getRequest(
-//         "/customers/wallets?page=1&items_per_page=15",
-//       );
-//
-//       // Print the full response to the debugger
-//       debugPrint("🔹 Wallets API Response: $response");
-//
-//       // Optional: Print just the wallet data if the request was successful
-//       if (response["status"] == true) {
-//         debugPrint("Wallet data: ${json.encode(response["data"])}");
-//       } else {
-//         debugPrint("Error: ${response["message"]}");
-//       }
-//     } catch (e) {
-//       debugPrint("❌ Wallets API Error: $e");
-//     }
-//   }
-// }

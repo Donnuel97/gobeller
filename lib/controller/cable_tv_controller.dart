@@ -105,13 +105,15 @@ class CableTVController with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> subscribeToCableTV({
+
+
+  Future<Map<String, dynamic>> subscribeToCableTV({
     required String cableTvType,
     required String smartCardNumber,
     required String subscriptionPlan,
     required String phoneNumber,
     required String transactionPin,
-    required BuildContext context,
+    required BuildContext context, // <- add this back
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -119,15 +121,20 @@ class CableTVController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Authentication required. Please log in again.")),
-        );
-        _isLoading = false;
-        notifyListeners();
-        return;
+        return {
+          'success': false,
+          'message': '🔒 You’ve been logged out. Please log in again.',
+        };
       }
+
+      final Map<String, String> headers = {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "AppID": appId,
+      };
 
       final Map<String, dynamic> body = {
         "cable_tv_type": cableTvType,
@@ -140,28 +147,44 @@ class CableTVController with ChangeNotifier {
       final response = await ApiService.postRequest(
         "/transactions/subscribe-cable-tv",
         body,
-        extraHeaders: {'Authorization': 'Bearer $token'},
+        extraHeaders: headers,
       );
 
-      debugPrint("🔹 Cable TV Subscription API Response: $response");
+      final status = response["status"];
+      final message = (response["message"] ?? "").toString().trim();
 
-      if (response["status"] == true) {
+      if (status == true) {
         _balance = response["data"]["balance"].toDouble();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ ${response["message"]} - New Balance: $_balance")),
-        );
+        return {
+          'success': true,
+          'message': '📺 Subscription successful! New Balance: $_balance',
+        };
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ ${response["message"]}"), backgroundColor: Colors.red),
-        );
+        String friendlyMessage = "❌ Subscription failed.";
+        if (message.toLowerCase().contains("invalid pin")) {
+          friendlyMessage = "🔐 Your transaction PIN is incorrect.";
+        } else if (message.toLowerCase().contains("insufficient")) {
+          friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
+        } else if (message.toLowerCase().contains("unauthenticated")) {
+          friendlyMessage = "🔒 Session expired. Please log in again.";
+        } else if (message.isNotEmpty) {
+          friendlyMessage = message;
+        }
+
+        return {
+          'success': false,
+          'message': friendlyMessage,
+        };
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Subscription failed: $e"), backgroundColor: Colors.red),
-      );
+      return {
+        'success': false,
+        'message': '🌐 Network error occurred. Please try again.',
+      };
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
+
 }

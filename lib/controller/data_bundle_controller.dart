@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:gobeller/utils/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/utils/api_service.dart';
 
 class DataBundleController with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  /// Fetches data bundles for the selected network
   static Future<List<Map<String, dynamic>>?> fetchDataBundles(String network) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -22,11 +23,7 @@ class DataBundleController with ChangeNotifier {
       };
 
       String endpoint = "get-data-bundles/${network.toLowerCase()}-data";
-
-      final response = await ApiService.getRequest(
-        "/transactions/$endpoint",
-        extraHeaders: extraHeaders,
-      );
+      final response = await ApiService.getRequest("/transactions/$endpoint", extraHeaders: extraHeaders);
 
       debugPrint("🔹 Data Bundles API Response for $network: $response");
 
@@ -42,12 +39,12 @@ class DataBundleController with ChangeNotifier {
     }
   }
 
-  Future<void> buyDataBundle({
+  /// Buys a data bundle and returns a result map
+  Future<Map<String, dynamic>> buyDataBundle({
     required String networkProvider,
     required String dataPlan,
     required String phoneNumber,
     required String pin,
-    required BuildContext context,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -55,14 +52,13 @@ class DataBundleController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Authentication required. Please log in again.")),
-        );
-        _isLoading = false;
-        notifyListeners();
-        return;
+        return {
+          'success': false,
+          'message': '🔒 You’ve been logged out. Please log in again.',
+        };
       }
 
       final String endpoint = "/transactions/buy-data-bundle";
@@ -70,10 +66,11 @@ class DataBundleController with ChangeNotifier {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
+        "AppID": appId,
       };
 
       final Map<String, dynamic> body = {
-        "network_provider": networkProvider.toLowerCase() + "-data",
+        "network_provider": "${networkProvider.toLowerCase()}-data",
         "data_plan": dataPlan,
         "phone_number": phoneNumber,
         "transaction_pin": pin,
@@ -84,22 +81,33 @@ class DataBundleController with ChangeNotifier {
       final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
       debugPrint("🔹 Data Purchase API Response: $response");
 
-      if (response["status"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ ${response["message"]}")),
-        );
+      final status = response["status"];
+      final message = (response["message"] ?? "").toString().trim();
+
+      if (status == true) {
+        return {'success': true, 'message': '✅ Data purchase successful!'};
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ Error: ${response["message"]}"), backgroundColor: Colors.red),
-        );
+        String friendlyMessage = "❌ Something went wrong.";
+        if (message.toLowerCase().contains("invalid pin")) {
+          friendlyMessage = "🔐 Your transaction PIN is incorrect.";
+        } else if (message.toLowerCase().contains("insufficient")) {
+          friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
+        } else if (message.toLowerCase().contains("unauthenticated")) {
+          friendlyMessage = "🔒 Session expired. Please log in again.";
+        } else if (message.isNotEmpty) {
+          friendlyMessage = message;
+        }
+
+        return {'success': false, 'message': friendlyMessage};
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Request failed: $e"), backgroundColor: Colors.red),
-      );
+      return {
+        'success': false,
+        'message': '❌ Network error occurred. Please try again.',
+      };
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 }
