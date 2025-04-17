@@ -86,6 +86,11 @@ class CardDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 30),
                 const Text(
+                  "The Card Address is the same as your residential address for online transaction or purchase",
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+                const SizedBox(height: 30),
+                const Text(
                   "This is your virtual card detail. Keep your card data secure and do not share sensitive information.",
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),

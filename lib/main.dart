@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/routes.dart';
 import 'provider/dark_mode_provider.dart';
 import 'controller/airtime_controller.dart';
@@ -20,8 +22,49 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Color? _primaryColor;
+  Color? _secondaryColor;
+  String? _logoUrl;
+  String? _appName;
+  // String _appName = "SDDTIF THRIFT";  // Default app name
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppSettings();
+  }
+
+  Future<void> _loadAppSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'];
+      final secondaryColorHex = data['customized-app-secondary-color'];
+      final logoUrl = data['customized-app-logo-url'];
+      final appName = data['customized-app-name'];  // Fetch short_name from the data
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+        _logoUrl = logoUrl;
+        if (appName != null) {
+          _appName = appName;  // Update the app name
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +86,7 @@ class MyApp extends StatelessWidget {
         builder: (context, darkMode, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'SDDTIF',
+            title: _appName,  // Use dynamic app name
             navigatorKey: navigatorKey,
             themeMode: darkMode.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             theme: ThemeData(

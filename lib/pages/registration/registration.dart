@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart'; // 👈 Add this
 import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/registration_controller.dart';
 
@@ -26,11 +27,34 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telephoneController = TextEditingController();
   final TextEditingController _transactionPinController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
 
   String? _selectedIdType;
   bool _showIdInput = false;
   bool _showFullForm = false;
   bool _hasPopulatedFields = false;
+
+  VideoPlayerController? _videoController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+      ..initialize().then((_) {
+        setState(() {});
+        _videoController!
+          ..setLooping(true)
+          ..setVolume(0)
+          ..play();
+      });
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
 
   void _populateFieldsFromVerificationData(Map<String, dynamic> data) {
     _firstNameController.text = data['first_name'] ?? '';
@@ -39,6 +63,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _usernameController.text = data['username'] ?? '';
     _emailController.text = data['email'] ?? '';
     _telephoneController.text = data['phone_number1'] ?? data['telephone'] ?? '';
+    _dobController.text = data['date_of_birth'] ?? '';
   }
 
   void _resetFormState() {
@@ -53,6 +78,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _passwordController.clear();
     _confirmPasswordController.clear();
     _transactionPinController.clear();
+    _dobController.clear();
 
     setState(() {
       _selectedIdType = null;
@@ -74,81 +100,136 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: ConstUI.kMainPadding,
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Image.asset("assets/logo.png", width: 128, height: 128),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Create Your Account",
-                    style: Theme.of(context).textTheme.titleLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_videoController != null && _videoController!.value.isInitialized)
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController!.value.size.width,
+                height: _videoController!.value.size.height,
+                child: VideoPlayer(_videoController!),
+              ),
+            )
+          else
+            Container(color: Colors.black),
 
-                  DropdownButtonFormField<String>(
-                    value: _selectedIdType,
-                    decoration: const InputDecoration(labelText: "Select ID Type"),
-                    items: ["nin", "bvn", "passport-number"]
-                        .map((idType) => DropdownMenuItem(value: idType, child: Text(idType)))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedIdType = value;
-                        _showIdInput = true;
-                        _showFullForm = false;
-                        _hasPopulatedFields = false;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
+          Container(color: Colors.black.withOpacity(0.8)),
 
-                  if (_showIdInput) ...[
-                    TextFormField(
-                      controller: _idNumberController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(labelText: "Enter $_selectedIdType Number"),
-                      validator: (value) =>
-                      value == null || value.isEmpty ? "ID number is required" : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_idNumberController.text.isNotEmpty) {
-                          ninController.verifyId(_idNumberController.text.trim(), _selectedIdType!);
-                        }
-                      },
-                      child: ninController.isVerifying
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Verify'),
-                    ),
-                    const SizedBox(height: 10),
-
-                    if (ninController.verificationMessage.isNotEmpty)
-                      Text(
-                        ninController.verificationMessage,
-                        style: TextStyle(
-                          color: ninController.verificationMessage.contains('Success')
-                              ? Colors.green
-                              : Colors.red,
-                        ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: ConstUI.kMainPadding,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Image.asset("assets/logo.png", width: 128, height: 128),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Create Your Account",
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => Navigator.pushNamed(context, '/login'),
+                            child: const Text(
+                              "Already have an account? Login",
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        ],
                       ),
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 32),
 
-                  if (_showFullForm) _buildFullForm(ninController),
-                ],
+                      DropdownButtonFormField<String>(
+                        value: _selectedIdType,
+                        decoration: InputDecoration(
+                          labelText: "Select ID Type",
+                          labelStyle: const TextStyle(color: Colors.white),
+                          enabledBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                          border: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                        ),
+                        dropdownColor: Colors.black87,
+                        style: const TextStyle(color: Colors.white),
+                        items: const [
+                          {"label": "Register with NIN", "value": "nin"},
+                          {"label": "Register with BVN", "value": "bvn"},
+                          {"label": "Register with Passport", "value": "passport-number"},
+                        ].map((item) {
+                          return DropdownMenuItem<String>(
+                            value: item["value"]!,
+                            child: Text(item["label"]!, style: const TextStyle(color: Colors.white)),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedIdType = value;
+                            _showIdInput = true;
+                            _showFullForm = false;
+                            _hasPopulatedFields = false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+
+                      if (_showIdInput) ...[
+                        TextFormField(
+                          controller: _idNumberController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: "Enter ID Number"),
+                          style: const TextStyle(color: Colors.white),
+                          validator: (value) =>
+                          value == null || value.isEmpty ? "ID number is required" : null,
+                        ),
+                        const SizedBox(height: 10),
+
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_idNumberController.text.isNotEmpty) {
+                              ninController.verifyId(_idNumberController.text.trim(), _selectedIdType!);
+                            }
+                          },
+                          child: ninController.isVerifying
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text('Verify'),
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (ninController.verificationMessage.isNotEmpty)
+                          Text(
+                            ninController.verificationMessage,
+                            style: TextStyle(
+                              color: ninController.verificationMessage.contains('Success')
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      if (_showFullForm) _buildFullForm(ninController),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -157,29 +238,122 @@ class _RegistrationPageState extends State<RegistrationPage> {
     final data = ninController.ninData;
     String gender = (data?['gender'] ?? 'unspecified').toString().toLowerCase();
 
+    const labelStyle = TextStyle(color: Colors.white);
+    const inputBorder = UnderlineInputBorder(
+      borderSide: BorderSide(color: Colors.white),
+    );
+
+    InputDecoration inputDecoration(String label, {Widget? suffixIcon}) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: labelStyle,
+        enabledBorder: inputBorder,
+        focusedBorder: inputBorder,
+        border: inputBorder,
+        suffixIcon: suffixIcon,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(controller: _firstNameController, decoration: const InputDecoration(labelText: "First Name")),
+        TextFormField(
+          controller: _firstNameController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("First Name"),
+        ),
         const SizedBox(height: 10),
-        TextFormField(controller: _middleNameController, decoration: const InputDecoration(labelText: "Middle Name (Optional)")),
+
+        TextFormField(
+          controller: _middleNameController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Middle Name (Optional)"),
+        ),
         const SizedBox(height: 10),
-        TextFormField(controller: _lastNameController, decoration: const InputDecoration(labelText: "Last Name")),
+
+        TextFormField(
+          controller: _lastNameController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Last Name"),
+        ),
         const SizedBox(height: 10),
-        TextFormField(controller: _usernameController, decoration: const InputDecoration(labelText: "Username")),
+
+        TextFormField(
+          controller: _usernameController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Username"),
+        ),
         const SizedBox(height: 10),
-        TextFormField(controller: _emailController, decoration: const InputDecoration(labelText: "Email")),
+
+        TextFormField(
+          controller: _emailController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Email"),
+        ),
         const SizedBox(height: 10),
-        TextFormField(controller: _telephoneController, decoration: const InputDecoration(labelText: "Telephone")),
+
+        TextFormField(
+          controller: _telephoneController,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Telephone"),
+        ),
+        const SizedBox(height: 10),
+
+        TextFormField(
+          controller: _dobController,
+          readOnly: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration(
+            "Date of Birth",
+            suffixIcon: const Icon(Icons.calendar_today, color: Colors.white),
+          ),
+          onTap: () async {
+            DateTime initialDate;
+            try {
+              initialDate = DateTime.parse(_dobController.text);
+            } catch (_) {
+              initialDate = DateTime(2000);
+            }
+
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: ThemeData.dark().copyWith(
+                    colorScheme: const ColorScheme.dark(
+                      primary: Colors.orange,
+                      onPrimary: Colors.black,
+                      surface: Colors.grey,
+                      onSurface: Colors.white,
+                    ),
+                    dialogBackgroundColor: Colors.black,
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (picked != null) {
+              _dobController.text = picked.toIso8601String().split('T').first;
+            }
+          },
+        ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _passwordController,
           obscureText: _isPasswordObscured,
-          decoration: InputDecoration(
-            labelText: "Password",
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration(
+            "Password",
             suffixIcon: IconButton(
-              icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility),
+              icon: Icon(
+                _isPasswordObscured ? Icons.visibility_off : Icons.visibility,
+                color: Colors.white,
+              ),
               onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
             ),
           ),
@@ -190,10 +364,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
         TextFormField(
           controller: _confirmPasswordController,
           obscureText: _isConfirmPasswordObscured,
-          decoration: InputDecoration(
-            labelText: "Confirm Password",
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration(
+            "Confirm Password",
             suffixIcon: IconButton(
-              icon: Icon(_isConfirmPasswordObscured ? Icons.visibility_off : Icons.visibility),
+              icon: Icon(
+                _isConfirmPasswordObscured ? Icons.visibility_off : Icons.visibility,
+                color: Colors.white,
+              ),
               onPressed: () => setState(() => _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
             ),
           ),
@@ -205,7 +383,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
           controller: _transactionPinController,
           keyboardType: TextInputType.number,
           maxLength: 4,
-          decoration: const InputDecoration(labelText: "Transaction Pin"),
+          style: const TextStyle(color: Colors.white),
+          decoration: inputDecoration("Transaction Pin"),
           validator: (value) {
             if (value == null || value.length != 4) return "Enter a 4-digit PIN";
             if (int.tryParse(value) == null) return "Only digits allowed";
@@ -223,6 +402,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   _isTermsAccepted = value ?? false;
                 });
               },
+              checkColor: Colors.black,
+              activeColor: Colors.white,
             ),
             Expanded(
               child: GestureDetector(
@@ -233,7 +414,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 },
                 child: const Text(
                   'I accept the terms and privacy policy',
-                  style: TextStyle(decoration: TextDecoration.underline),
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -266,6 +450,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   gender: gender,
                   password: _passwordController.text.trim(),
                   transactionPin: int.parse(_transactionPinController.text.trim()),
+                  dateOfBirth: _dobController.text.trim(),
                 );
 
                 if (controller.submissionMessage.contains("successful")) {
@@ -294,4 +479,5 @@ class _RegistrationPageState extends State<RegistrationPage> {
       ],
     );
   }
+
 }

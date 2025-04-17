@@ -5,6 +5,63 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController {
   // Fetch user profile from the API
+  // static Future<Map<String, dynamic>?> fetchUserProfile() async {
+  //   try {
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? token = prefs.getString('auth_token');
+  //
+  //     if (token == null) {
+  //       debugPrint("❌ No authentication token found. Please login again.");
+  //       return null;
+  //     }
+  //
+  //     // Print token to console
+  //     debugPrint("🔑 Token for profile fetch: $token");
+  //
+  //     final extraHeaders = {
+  //       'Authorization': 'Bearer $token',
+  //     };
+  //
+  //     final response = await ApiService.getRequest("/profile", extraHeaders: extraHeaders);
+  //
+  //     debugPrint("🔹 User Profile API Response: $response");
+  //
+  //     if (response["status"] == true) {
+  //       final profileData = response["data"];
+  //
+  //       Map<String, dynamic> userProfile = {
+  //         'id': profileData["id"] ?? '',
+  //         'full_name': profileData["full_name"] ?? '',
+  //         'first_name': profileData["first_name"] ?? '',
+  //         'email': profileData["email"] ?? '',
+  //         'username': profileData["username"] ?? '',
+  //         'telephone': profileData["telephone"] ?? '',
+  //         'gender': profileData["gender"] ?? '',
+  //         'date_of_birth': profileData["date_of_birth"] ?? '',
+  //         'physical_address': profileData["physical_address"] ?? '',
+  //         'should_send_sms': profileData["should_send_sms"] ?? false,
+  //         'job_title': profileData["job_title"] ?? '',
+  //         'profile_image_url': profileData["profile_image_url"],
+  //         'status': profileData["status"]?["label"] ?? 'Unknown',
+  //         'organization': profileData["organization"]?["full_name"] ?? 'Unknown Org',
+  //         // Null-safe wallet data
+  //         'wallet_balance': profileData["get_primary_wallet"]?["balance"] ?? "0.00",
+  //         'wallet_number': profileData["get_primary_wallet"]?["wallet_number"] ?? "N/A",
+  //         'wallet_currency': profileData["get_primary_wallet"]?["currency"]?["code"] ?? "N/A",
+  //         'bank_name': profileData["get_primary_wallet"]?["bank"]?["name"] ?? "N/A",
+  //       };
+  //
+  //       debugPrint("✅ Parsed User Profile: $userProfile");
+  //       return userProfile;
+  //     } else {
+  //       debugPrint("⚠️ Error fetching profile: ${response["message"]}");
+  //       return null;
+  //     }
+  //   } catch (e) {
+  //     debugPrint("❌ Profile API Error: $e");
+  //     return null;
+  //   }
+  // }
   static Future<Map<String, dynamic>?> fetchUserProfile() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -14,6 +71,8 @@ class ProfileController {
         debugPrint("❌ No authentication token found. Please login again.");
         return null;
       }
+
+      debugPrint("🔑 Token for profile fetch: $token");
 
       final extraHeaders = {
         'Authorization': 'Bearer $token',
@@ -25,6 +84,18 @@ class ProfileController {
 
       if (response["status"] == true) {
         final profileData = response["data"];
+        final walletData = profileData["get_primary_wallet"];
+
+        final walletBalance = walletData?["balance"];
+        final walletNumber = walletData?["wallet_number"];
+        final walletCurrency = walletData?["currency"]?["code"];
+        final bankName = walletData?["bank"]?["name"];
+
+        final bool hasWallet = walletData != null &&
+            walletBalance != null &&
+            walletNumber != null &&
+            walletCurrency != null &&
+            bankName != null;
 
         Map<String, dynamic> userProfile = {
           'id': profileData["id"] ?? '',
@@ -41,15 +112,19 @@ class ProfileController {
           'profile_image_url': profileData["profile_image_url"],
           'status': profileData["status"]?["label"] ?? 'Unknown',
           'organization': profileData["organization"]?["full_name"] ?? 'Unknown Org',
-
-          // Null-safe wallet data
-          'wallet_balance': profileData["get_primary_wallet"]?["balance"] ?? "0.00",
-          'wallet_number': profileData["get_primary_wallet"]?["wallet_number"] ?? "N/A",
-          'wallet_currency': profileData["get_primary_wallet"]?["currency"]?["code"] ?? "N/A",
-          'bank_name': profileData["get_primary_wallet"]?["bank"]?["name"] ?? "N/A",
+          'wallet_balance': walletBalance ?? "0.00",
+          'wallet_number': walletNumber ?? "N/A",
+          'wallet_currency': walletCurrency ?? "N/A",
+          'bank_name': bankName ?? "N/A",
+          'has_wallet': hasWallet,
         };
 
+        // 🔐 Save raw profile response to local storage
+        await prefs.setString('userProfileRaw', json.encode(profileData));
+
+        debugPrint("✅ Saved raw profile to SharedPreferences.");
         debugPrint("✅ Parsed User Profile: $userProfile");
+
         return userProfile;
       } else {
         debugPrint("⚠️ Error fetching profile: ${response["message"]}");
@@ -73,6 +148,9 @@ class ProfileController {
         debugPrint("❌ No authentication token found. Please login again.");
         return "Authentication required. Please log in again.";
       }
+
+      // Print token to console
+      debugPrint("🔑 Token for password change: $token");
 
       final extraHeaders = {
         'Authorization': 'Bearer $token', // Include the token in the Authorization header
@@ -104,12 +182,20 @@ class ProfileController {
       return "An error occurred while changing the password.";
     }
   }
-// Inside ProfileController
 
+  // Fetch Customer Support Details
   static Future<Map<String, dynamic>?> fetchCustomerSupportDetails() async {
     try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? appId = prefs.getString('appId');
+
+      if (appId == null || appId.isEmpty) {
+        debugPrint("❌ AppID not found in SharedPreferences.");
+        return null;
+      }
+
       final response = await ApiService.getRequest(
-        "/organizations/customer-support-details/9d4558d8-5d4f-4e85-a8c1-bccee25e022b",
+        "/organizations/customer-support-details/$appId",
       );
 
       debugPrint("📞 Support API Response: $response");
@@ -126,7 +212,6 @@ class ProfileController {
     }
   }
 
-
   // Change Transaction PIN
   static Future<String> changeTransactionPin(String currentPin, String newPin) async {
     try {
@@ -137,6 +222,9 @@ class ProfileController {
         debugPrint("❌ No authentication token found. Please login again.");
         return "Authentication required. Please log in again.";
       }
+
+      // Print token to console
+      debugPrint("🔑 Token for transaction PIN change: $token");
 
       final extraHeaders = {
         'Authorization': 'Bearer $token', // Include the token in the Authorization header

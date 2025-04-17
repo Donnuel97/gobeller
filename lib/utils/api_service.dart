@@ -59,6 +59,29 @@ class ApiService {
     }
   }
 
+  // ✅ Generic PATCH request
+  static Future<Map<String, dynamic>> patchRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
+    final url = _buildUrl(endpoint);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    final defaultHeaders = await ConstApi.getHeaders(); // ✅ Fetch headers dynamically
+
+    try {
+      final response = await http.patch(
+        Uri.parse(url),
+        headers: {
+          ...defaultHeaders,
+          if (token != null) 'Authorization': 'Bearer $token',
+          if (extraHeaders != null) ...extraHeaders,
+        },
+        body: jsonEncode(formData),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'status': 'error', 'message': 'PATCH request error: $e'};
+    }
+  }
+
   // Handle API responses and authentication failures
   static Map<String, dynamic> _handleResponse(http.Response response) {
     try {
@@ -79,5 +102,4 @@ class ApiService {
       return {'status': false, 'message': '❌ Failed to parse response: $e'};
     }
   }
-
 }

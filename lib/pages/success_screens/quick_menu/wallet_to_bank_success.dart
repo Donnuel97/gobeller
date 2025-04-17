@@ -45,11 +45,21 @@ class _WalletTransferResultPageState extends State<WalletTransferResultPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
     final bool success = args?['success'] ?? false;
     final String message = args?['message'] ?? 'No message received.';
+    final data = args?['data'];
+
+    final String reference = data?['reference_number'] ?? 'N/A';
+    final double? amount = data?['user_amount'];
+    final double? charge = data?['user_charge_amount'];
+    final String balanceBefore = data?['user_balance_before']?.toString() ?? '-';
+    final String balanceAfter = data?['user_balance_after']?.toString() ?? '-';
+    final String description = data?['description'] ?? '';
 
     return Scaffold(
       backgroundColor: Colors.grey[200],
@@ -78,16 +88,38 @@ class _WalletTransferResultPageState extends State<WalletTransferResultPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    success ? Icons.check_circle : Icons.cancel,
+                    success ? Icons.check_circle_rounded : Icons.error_outline_rounded,
                     size: 100,
-                    color: success ? _primaryColor : _secondaryColor,
+                    color: success ? _primaryColor ?? Colors.green : _secondaryColor ?? Colors.redAccent,
                   ),
                   const SizedBox(height: 20),
                   Text(
+                    success ? "Success!" : "Transaction Failed",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: success ? Colors.green : Colors.redAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 16),
                   ),
+                  const SizedBox(height: 20),
+
+                  if (success && data != null) ...[
+                    const Divider(),
+                    _detailRow("Reference", reference),
+                    _detailRow("Amount", amount != null ? "₦${amount.toStringAsFixed(2)}" : "N/A"),
+                    _detailRow("Charge", charge != null ? "₦${charge.toStringAsFixed(2)}" : "N/A"),
+                    _detailRow("Before", "₦$balanceBefore"),
+                    _detailRow("After", "₦$balanceAfter"),
+                    _detailRow("Note", description),
+                    const Divider(),
+                  ],
+
                   const SizedBox(height: 30),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -121,12 +153,26 @@ class _WalletTransferResultPageState extends State<WalletTransferResultPage> {
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

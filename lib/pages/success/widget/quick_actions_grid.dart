@@ -56,7 +56,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
             _buildMenuCard(context, icon: Icons.wifi, label: "Data", route: Routes.data_purchase),
             _buildMenuCard(context, icon: Icons.tv, label: "Cable", route: Routes.cable_tv),
             _buildMenuCard(context, icon: Icons.lightbulb, label: "Electric", route: Routes.electric),
-            _buildMenuCard(context, icon: Icons.monetization_on, label: "MoMo", route: Routes.reg_success),
+            _buildMenuCard(context, icon: Icons.credit_card_outlined, label: "Virtual Card", route: Routes.virtualCard),
           ],
         );
       },

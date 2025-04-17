@@ -48,6 +48,7 @@ dependencies:
   printing: ^5.14.2
   path_provider: ^2.0.9 # For saving the icon locally
   local_auth: ^2.3.0
+  video_player: ^2.9.5
 
 dev_dependencies:
   flutter_test:
@@ -57,7 +58,7 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logo.png" # Your logo file path
+  image_path: "assets/icon.jpg" # Your logo file path
   adaptive_icon_background: "#FFFFFF" # White background
 #  adaptive_icon_foreground: "assets/icon/icon_foreground.png" # Optional: foreground image, can be left out if not needed
 #  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
@@ -80,6 +81,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/icon.jpg
     - assets/logo_2.png
     - assets/google.png
     - assets/airtime_data/mtn-logo.svg
@@ -92,6 +94,7 @@ flutter:
     - assets/cable/dstv.png
     - assets/male.png
     - assets/female.png
+    - assets/videos/welcome_bg.mp4
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

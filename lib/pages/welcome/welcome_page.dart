@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/utils/routes.dart';
 import 'package:gobeller/controller/organization_controller.dart';
@@ -16,50 +17,25 @@ class WelcomePage extends StatefulWidget {
 class _WelcomePageState extends State<WelcomePage> {
   bool _hasFetched = false;
   bool _hasRetried = false;
-
-  Color? _primaryColor;
-  Color? _secondaryColor;
-  String? _logoUrl;
-
-  // Dynamic content from organization data
-  String _welcomeTitle = "Welcome";
-  String _welcomeDescription = "We are here to help you achieve your goals.";
+  VideoPlayerController? _videoController;
 
   @override
   void initState() {
     super.initState();
-    _loadAppSettings();
+
+    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+      ..initialize().then((_) {
+        setState(() {});
+        _videoController!.setLooping(true);
+        _videoController!.setVolume(0);
+        _videoController!.play();
+      });
   }
 
-  Future<void> _loadAppSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final settingsJson = prefs.getString('appSettingsData');
-    final orgJson = prefs.getString('organizationData');
-
-    if (settingsJson != null) {
-      final Map<String, dynamic> settings = json.decode(settingsJson);
-      final data = settings['data'] ?? {};
-
-      final primaryColorHex = data['customized-app-primary-color'];
-      final secondaryColorHex = data['customized-app-secondary-color'];
-      final logoUrl = data['customized-app-logo-url'];
-
-      setState(() {
-        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
-        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
-        _logoUrl = logoUrl;
-      });
-    }
-
-    if (orgJson != null) {
-      final Map<String, dynamic> orgData = json.decode(orgJson);
-      final data = orgData['data'] ?? {};
-
-      setState(() {
-        _welcomeTitle = "Welcome to ${data['short_name']} App";
-        _welcomeDescription = data['description'] ?? _welcomeDescription;
-      });
-    }
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -70,6 +46,7 @@ class _WelcomePageState extends State<WelcomePage> {
       final orgController = Provider.of<OrganizationController>(context, listen: false);
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await orgController.loadCachedData();
         await orgController.fetchOrganizationData();
 
         if ((orgController.organizationData == null || orgController.appSettingsData == null) && !_hasRetried) {
@@ -92,20 +69,56 @@ class _WelcomePageState extends State<WelcomePage> {
         final isLoading = orgController.isLoading;
         final hasError = orgController.organizationData == null || orgController.appSettingsData == null;
 
+        final settings = orgController.appSettingsData?['data'] ?? {};
+        final orgData = orgController.organizationData?['data'] ?? {};
+
+        final primaryColorHex = settings['customized-app-primary-color'] ?? '#6200EE';
+        final logoUrl = settings['customized-app-logo-url'];
+        final welcomeTitle = "Welcome to ${orgData['short_name'] ?? 'Our'} Thrift";
+        final welcomeDescription = orgData['description'] ?? "We are here to help you achieve your goals.";
+
+        final primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+
         return Scaffold(
-          body: SafeArea(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : hasError
-                ? _buildErrorState(context)
-                : _buildMainContent(context),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Video
+              if (_videoController != null && _videoController!.value.isInitialized)
+                FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _videoController!.value.size.width,
+                    height: _videoController!.value.size.height,
+                    child: VideoPlayer(_videoController!),
+                  ),
+                )
+              else
+                Container(color: Colors.black), // fallback background
+
+              // Dark overlay
+              Container(
+                color: Colors.black.withOpacity(0.8), // lighter
+                // color: Colors.black.withOpacity(0.8), // darker
+
+              ),
+
+              // Content
+              SafeArea(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : hasError
+                    ? _buildErrorState(context)
+                    : _buildMainContent(context, logoUrl, welcomeTitle, welcomeDescription, primaryColor),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildMainContent(BuildContext context) {
+  Widget _buildMainContent(BuildContext context, String? logoUrl, String welcomeTitle, String welcomeDescription, Color primaryColor) {
     return Column(
       children: [
         Expanded(
@@ -114,9 +127,9 @@ class _WelcomePageState extends State<WelcomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _logoUrl != null
+                logoUrl != null
                     ? Image.network(
-                  _logoUrl!,
+                  logoUrl,
                   width: 188,
                   height: 188,
                   fit: BoxFit.contain,
@@ -135,17 +148,17 @@ class _WelcomePageState extends State<WelcomePage> {
                     : const Icon(Icons.image, size: 100, color: Colors.grey),
                 const SizedBox(height: 32),
                 Text(
-                  _welcomeTitle,
+                  welcomeTitle,
                   style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: Colors.white,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _welcomeDescription,
+                  welcomeDescription,
                   style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: Colors.white70,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -159,6 +172,10 @@ class _WelcomePageState extends State<WelcomePage> {
             children: [
               Expanded(
                 child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white70),
+                  ),
                   child: const Text("Login"),
                   onPressed: () => Navigator.pushNamed(context, Routes.login),
                 ),
@@ -167,7 +184,7 @@ class _WelcomePageState extends State<WelcomePage> {
               Expanded(
                 child: FilledButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(_primaryColor),
+                    backgroundColor: MaterialStateProperty.all(primaryColor),
                   ),
                   child: const Text("Register"),
                   onPressed: () => Navigator.pushNamed(context, Routes.register),
@@ -176,6 +193,7 @@ class _WelcomePageState extends State<WelcomePage> {
             ],
           ),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -194,7 +212,7 @@ class _WelcomePageState extends State<WelcomePage> {
             const Text(
               "Unable to load app settings.\nPlease check your internet and try again.",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: Colors.white),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(

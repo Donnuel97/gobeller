@@ -1,10 +1,11 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../../controller/user_controller.dart';
 import '../../../utils/routes.dart';
 
 class UserInfoCard extends StatefulWidget {
@@ -12,6 +13,7 @@ class UserInfoCard extends StatefulWidget {
   final String accountNumber;
   final String balance;
   final String bankName;
+  final bool hasWallet; // 🔹 New prop to handle wallet state
 
   const UserInfoCard({
     super.key,
@@ -19,6 +21,7 @@ class UserInfoCard extends StatefulWidget {
     required this.accountNumber,
     required this.balance,
     required this.bankName,
+    required this.hasWallet,
   });
 
   @override
@@ -30,6 +33,8 @@ class _UserInfoCardState extends State<UserInfoCard> {
   Color? _primaryColor;
   Color? _secondaryColor;
 
+  final _secureStorage = FlutterSecureStorage();
+
   @override
   void initState() {
     super.initState();
@@ -38,14 +43,14 @@ class _UserInfoCardState extends State<UserInfoCard> {
 
   Future<void> _loadPrimaryColor() async {
     final prefs = await SharedPreferences.getInstance();
-    final settingsJson = prefs.getString('appSettingsData');  // Using the correct key name for settings
+    final settingsJson = prefs.getString('appSettingsData');
 
     if (settingsJson != null) {
       final Map<String, dynamic> settings = json.decode(settingsJson);
       final data = settings['data'] ?? {};
 
-      final primaryColorHex = data['customized-app-primary-color'] ; // Default fallback color
-      final secondaryColorHex = data['customized-app-secondary-color'] ; // Default fallback color
+      final primaryColorHex = data['customized-app-primary-color'];
+      final secondaryColorHex = data['customized-app-secondary-color'];
 
       setState(() {
         _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
@@ -54,16 +59,13 @@ class _UserInfoCardState extends State<UserInfoCard> {
     }
   }
 
+  Future<bool> _isTokenValid() async {
+    String? token = await UserController.getToken();
+    return token != null && token.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Check if wallet details are missing or invalid
-    bool isWalletMissing = widget.balance.isEmpty ||
-        widget.balance == "0.00" ||
-        widget.accountNumber.isEmpty ||
-        widget.accountNumber == "N/A" ||
-        widget.bankName.isEmpty ||
-        widget.bankName == "N/A";
-
     String formattedBalance = NumberFormat("#,##0.00")
         .format(double.tryParse(widget.balance) ?? 0.00);
 
@@ -83,8 +85,8 @@ class _UserInfoCardState extends State<UserInfoCard> {
           ),
           const SizedBox(height: 10),
 
-          // Wallet Info or Create Wallet
-          if (isWalletMissing)
+          // 🔹 Use hasWallet flag to conditionally show content
+          if (!widget.hasWallet)
             Center(
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.account_balance_wallet_outlined),
@@ -93,12 +95,16 @@ class _UserInfoCardState extends State<UserInfoCard> {
                   backgroundColor: Colors.white,
                   foregroundColor: _primaryColor ?? Colors.deepPurple,
                 ),
-                onPressed: () {
-                  Navigator.pushNamed(context, Routes.wallet);
+                onPressed: () async {
+                  bool isValid = await _isTokenValid();
+                  if (isValid) {
+                    Navigator.pushNamed(context, Routes.wallet);
+                  } else {
+                    Navigator.pushReplacementNamed(context, Routes.login);
+                  }
                 },
               ),
             )
-
           else ...[
             Row(
               children: [
@@ -149,5 +155,4 @@ class _UserInfoCardState extends State<UserInfoCard> {
       ),
     );
   }
-
 }

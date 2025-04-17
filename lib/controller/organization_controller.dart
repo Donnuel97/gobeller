@@ -15,32 +15,34 @@ class OrganizationController extends ChangeNotifier {
 
   OrganizationController();
 
-  /// Fetch Organization Data and save to SharedPreferences
+  /// Fetch Organization Data and save to SharedPreferences if it's different from the cached response
   Future<void> fetchOrganizationData() async {
     isLoading = true;
     notifyListeners();
 
     const String url = 'https://app.gobeller.com/api/v1/organizations/sddtif';
-// beller, wba, sddtif
+
     try {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        organizationData = jsonDecode(response.body);
-        debugPrint("✅ Organization Data: ${jsonEncode(organizationData)}");
+        final newOrganizationData = jsonDecode(response.body);
+        debugPrint("✅ Organization Data: ${jsonEncode(newOrganizationData)}");
 
-        appId = organizationData?['data']['id'];
+        // Only update SharedPreferences if the data has changed
+        if (!_isEqual(organizationData, newOrganizationData)) {
+          organizationData = newOrganizationData;
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString('organizationData', jsonEncode(organizationData));
 
-        // Save to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setString('organizationData', jsonEncode(organizationData));
+          appId = organizationData?['data']['id'];
+          if (appId != null) {
+            prefs.setString('appId', appId!);
+          }
 
-        if (appId != null) {
-          prefs.setString('appId', appId!);
+          // Fetch App Settings after organization data is fetched
+          await fetchAppSettings();
         }
-
-        // Fetch App Settings
-        await fetchAppSettings();
       } else {
         debugPrint("❌ Failed to load organization. Status: ${response.statusCode}");
       }
@@ -52,7 +54,7 @@ class OrganizationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetch App Settings and save to SharedPreferences
+  /// Fetch App Settings and save to SharedPreferences if it's different from the cached response
   Future<void> fetchAppSettings() async {
     if (appId == null) {
       debugPrint("❌ AppID is null. Cannot fetch settings.");
@@ -75,18 +77,21 @@ class OrganizationController extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        appSettingsData = jsonDecode(response.body);
-        debugPrint("✅ App Settings Data: ${jsonEncode(appSettingsData)}");
+        final newAppSettingsData = jsonDecode(response.body);
+        debugPrint("✅ App Settings Data: ${jsonEncode(newAppSettingsData)}");
 
-        // Save to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setString('appSettingsData', jsonEncode(appSettingsData));
+        // Only update SharedPreferences if the data has changed
+        if (!_isEqual(appSettingsData, newAppSettingsData)) {
+          appSettingsData = newAppSettingsData;
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString('appSettingsData', jsonEncode(appSettingsData));
 
-        // Extract the icon URL from app settings
-        String? iconUrl = appSettingsData?['data']['iconUrl'];
+          // Extract the icon URL from app settings
+          String? iconUrl = appSettingsData?['data']['iconUrl'];
 
-        if (iconUrl != null) {
-          await downloadAndSaveIcon(iconUrl);
+          if (iconUrl != null) {
+            await downloadAndSaveIcon(iconUrl);
+          }
         }
       } else {
         debugPrint("❌ Failed to load settings. Status: ${response.statusCode}");
@@ -147,5 +152,14 @@ class OrganizationController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Helper function to compare two JSON objects (Maps) for equality
+  bool _isEqual(Map<String, dynamic>? oldData, Map<String, dynamic>? newData) {
+    if (oldData == null || newData == null) {
+      return false;
+    }
+
+    return jsonEncode(oldData) == jsonEncode(newData);
   }
 }

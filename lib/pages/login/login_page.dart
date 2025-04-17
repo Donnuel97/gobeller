@@ -196,19 +196,33 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 32),
 
-                FilledButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(15),
-                    backgroundColor: _primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Login"),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton(
+                      onPressed: _isLoading ? null : _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(15),
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Login"),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Register Button
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, '/register'),
+                      child: const Text("Don’t have an account? Register"),
+                    ),
+                  ],
                 ),
+
 
                 if (_hideUsernameField)
                   TextButton(

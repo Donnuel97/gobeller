@@ -1,13 +1,14 @@
 import 'dart:convert';
+import 'dart:io'; // 👈 Needed for catching SocketException
 import 'package:flutter/material.dart';
 import 'package:gobeller/utils/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Ensure this is the correct location of your API service
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NinVerificationController with ChangeNotifier {
   bool _isVerifying = false;
   bool get isVerifying => _isVerifying;
 
-  bool _isSubmitting = false; // To track submission state
+  bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
 
   Map<String, dynamic>? _ninData;
@@ -19,7 +20,7 @@ class NinVerificationController with ChangeNotifier {
   String _submissionMessage = "";
   String get submissionMessage => _submissionMessage;
 
-  /// **Verifies NIN, BVN or Passport and fetches user details**
+  /// Verifies NIN, BVN or Passport and fetches user details
   Future<void> verifyId(String idNumber, String idType) async {
     _isVerifying = true;
     _ninData = null;
@@ -29,13 +30,12 @@ class NinVerificationController with ChangeNotifier {
     try {
       String endpoint = '';
 
-      // Determine the correct endpoint based on the ID type
       if (idType == 'nin') {
-        endpoint = "/verify/nin/$idNumber";  // NIN verification endpoint
+        endpoint = "/verify/nin/$idNumber";
       } else if (idType == 'bvn') {
-        endpoint = "/verify/bvn/$idNumber";  // BVN verification endpoint
+        endpoint = "/verify/bvn/$idNumber";
       } else if (idType == 'passport-number') {
-        endpoint = "/verify/passport-number/$idNumber";  // Passport verification endpoint
+        endpoint = "/verify/passport-number/$idNumber";
       } else {
         _verificationMessage = "⚠️ Invalid ID type selected.";
         _isVerifying = false;
@@ -43,9 +43,7 @@ class NinVerificationController with ChangeNotifier {
         return;
       }
 
-      // Make the API call
       final response = await ApiService.getRequest(endpoint);
-
       debugPrint("🔹 ID Verification API Response: $response");
 
       if (response["status"] == true && response["data"] != null) {
@@ -54,6 +52,8 @@ class NinVerificationController with ChangeNotifier {
       } else {
         _verificationMessage = response["message"] ?? "⚠️ Verification failed.";
       }
+    } on SocketException catch (_) {
+      _verificationMessage = "🚫 Unable to connect. Please check your internet connection and try again.";
     } catch (e) {
       _verificationMessage = "❌ Error verifying ID. Please try again.";
       debugPrint("❌ ID Verification API Error: $e");
@@ -63,8 +63,7 @@ class NinVerificationController with ChangeNotifier {
     notifyListeners();
   }
 
-  /// **Submits the registration data with KYC**
-  /// **Submits the registration data with KYC**
+  /// Submits the registration data with KYC
   Future<void> submitRegistration({
     required String idType,
     required String idNumber,
@@ -77,6 +76,7 @@ class NinVerificationController with ChangeNotifier {
     required String gender,
     required String password,
     required int transactionPin,
+    required String dateOfBirth,
   }) async {
     _isSubmitting = true;
     _submissionMessage = '';
@@ -91,10 +91,11 @@ class NinVerificationController with ChangeNotifier {
         "last_name": lastName,
         "email": email,
         "username": username,
-        "telephone": telephone.toString(),
+        "telephone": telephone,
         "gender": gender,
         "password": password,
         "transaction_pin": transactionPin.toString(),
+        "date_of_birth": dateOfBirth,
       };
 
       debugPrint("📤 Submitting Registration Payload:");
@@ -110,34 +111,26 @@ class NinVerificationController with ChangeNotifier {
       if (response["status"] == true) {
         _submissionMessage = "✅ Registration successful! Please check your email to verify your account.";
 
-        // 👉 Save response data to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
 
-        // Save user data if available
         if (response.containsKey('data')) {
           final userData = response['data'];
           await prefs.setString('userData', json.encode(userData));
-          await prefs.setBool('isLoggedIn', false); // User needs to login after registration
+          await prefs.setBool('isLoggedIn', false);
         }
 
-        // Save token if available
         if (response.containsKey('token')) {
           await prefs.setString('authToken', response['token']);
         }
 
-        // Save app settings if provided
         if (response.containsKey('app_settings')) {
           await prefs.setString('appSettingsData', json.encode(response['app_settings']));
         }
 
-        // Save organization data if provided
         if (response.containsKey('organization')) {
           await prefs.setString('organizationData', json.encode(response['organization']));
         }
-
-        // Optional: Notify other parts of the app to reload settings or refresh UI
       } else {
-        // Handle registration error response
         if (response.containsKey('errors')) {
           final errors = response['errors'] as Map<String, dynamic>;
           final errorMessages = errors.entries
@@ -153,6 +146,8 @@ class NinVerificationController with ChangeNotifier {
           _submissionMessage = response["message"] ?? "⚠️ Registration failed.";
         }
       }
+    } on SocketException catch (_) {
+      _submissionMessage = "🚫 Unable to connect. Please check your internet connection and try again.";
     } catch (e) {
       _submissionMessage = "❌ Error submitting registration. Please try again.";
       debugPrint("❌ Registration API Error: $e");
@@ -162,10 +157,7 @@ class NinVerificationController with ChangeNotifier {
     notifyListeners();
   }
 
-
-
-
-  /// **Clears verification data**
+  /// Clears verification data
   void clearVerification() {
     _ninData = null;
     _verificationMessage = "";
