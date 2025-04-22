@@ -1,8 +1,7 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:gobeller/const/const_ui.dart';
-import 'package:gobeller/controller/user_controller.dart';
+import 'package:gobeller/controller/login_controller.dart'; // ✅ Imported
 import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,15 +13,16 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  bool _isPasswordObscured = true;
+  final LoginController _loginController = LoginController(); // ✅ Added
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  bool _isPasswordObscured = true;
   bool _isLoading = false;
-
   bool _hideUsernameField = false;
-  String? _storedUsername;   // Used for authentication
-  String? _displayName;      // Shown to the user
 
+  String? _storedUsername;
+  String? _displayName;
   Color? _primaryColor;
   Color? _secondaryColor;
   String? _logoUrl;
@@ -87,14 +87,16 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     final username = _storedUsername ?? _usernameController.text.trim();
-    final result = await UserController.attemptAuthentication(
-      username,
-      _passwordController.text,
+    final password = _passwordController.text;
+
+    final result = await _loginController.loginUser(
+      username: username,
+      password: password,
     );
 
     if (!mounted) return;
 
-    if (result.toLowerCase().contains('successfully logged in')) {
+    if (result['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_username', username);
 
@@ -103,7 +105,9 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (context) => const DashboardPage()),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Login failed')),
+      );
     }
 
     setState(() => _isLoading = false);
@@ -189,7 +193,8 @@ class _LoginPageState extends State<LoginPage> {
                             : Icons.visibility_outlined,
                       ),
                       onPressed: () {
-                        setState(() => _isPasswordObscured = !_isPasswordObscured);
+                        setState(() =>
+                        _isPasswordObscured = !_isPasswordObscured);
                       },
                     ),
                   ),
@@ -215,14 +220,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Register Button
                     TextButton(
-                      onPressed: () => Navigator.pushNamed(context, '/register'),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/register'),
                       child: const Text("Don’t have an account? Register"),
                     ),
                   ],
                 ),
-
 
                 if (_hideUsernameField)
                   TextButton(
@@ -240,4 +244,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
