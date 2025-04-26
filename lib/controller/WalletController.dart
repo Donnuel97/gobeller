@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletController {
   // Fetch wallets from the API
-  static Future<Map<String, String>> fetchWallets() async {
+  static Future<Map<String, dynamic>> fetchWallets({int retryCount = 0}) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
@@ -27,16 +27,12 @@ class WalletController {
       debugPrint("🔹 Wallets API Response: $response");
 
       if (response["status"] == true) {
+        // Access the 'data' -> 'data' structure to get the wallet list
         List<dynamic> walletList = response["data"]["data"];
 
         if (walletList.isNotEmpty) {
-          var walletData = walletList[0];  // Safe access now
-          String walletNumber = walletData["wallet_number"];
-          String balance = walletData["balance"];
-
           return {
-            'wallet_number': walletNumber,
-            'balance': balance,
+            'data': walletList,  // Return the entire wallet list here
           };
         } else {
           debugPrint("ℹ️ No wallets found.");
@@ -44,12 +40,24 @@ class WalletController {
         }
       } else {
         debugPrint("Error: ${response["message"]}");
+
+        // If a 401 Unauthorized error is encountered, retry the request (limit retries)
+        if (response["status_code"] == 401 && retryCount < 3) {
+          debugPrint("401 Unauthorized - Retrying...");
+          return fetchWallets(retryCount: retryCount + 1);  // Retry up to 3 times
+        }
         return {};
       }
     } catch (e) {
       debugPrint("❌ Wallets API Error: $e");
+
+      // If 401 is encountered in the exception, retry
+      if (e.toString().contains('401') && retryCount < 3) {
+        debugPrint("401 Unauthorized error in exception - Retrying...");
+        return fetchWallets(retryCount: retryCount + 1);  // Retry up to 3 times
+      }
+
       return {};
     }
   }
-
 }

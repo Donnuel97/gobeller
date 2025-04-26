@@ -20,10 +20,10 @@ class WalletList extends StatelessWidget {
             contentPadding: const EdgeInsets.all(16),
             leading: CircleAvatar(
               backgroundColor: Colors.blueAccent,
-              child: Text(wallet["currency"], style: const TextStyle(color: Colors.white)),
+              child: Text('W', style: const TextStyle(color: Colors.white)),
             ),
-            title: Text(wallet["name"], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            subtitle: Text("${wallet["currency"]} ${wallet["balance"].toStringAsFixed(2)}",
+            title: Text(wallet["name"] ?? "Unknown Bank", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            subtitle: Text("Balance: ${wallet["balance"] ?? "N/A"}",
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
             trailing: const Icon(Icons.chevron_right),
           ),

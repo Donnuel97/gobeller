@@ -58,10 +58,9 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icon.jpg" # Your logo file path
-  adaptive_icon_background: "#FFFFFF" # White background
-#  adaptive_icon_foreground: "assets/icon/icon_foreground.png" # Optional: foreground image, can be left out if not needed
-#  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  image_path: "assets/logo.png" # Your logo file path
+  adaptive_icon_background:
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -79,9 +78,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
   assets:
-#    - assets/logo.png
-    - assets/icon.jpg
+    #    - assets/logo.png
+    - assets/logo.png
+    - assets/logo_3.png
     - assets/logo_2.png
     - assets/google.png
     - assets/airtime_data/mtn-logo.svg
@@ -95,6 +96,52 @@ flutter:
     - assets/male.png
     - assets/female.png
     - assets/videos/welcome_bg.mp4
+
+#dev_dependencies:
+#  flutter_test:
+#    sdk: flutter
+#  flutter_launcher_icons: ^0.13.1
+#
+#flutter_icons:
+#  android: true
+#  ios: true
+#  image_path: "assets/icon.jpg" # Your logo file path
+#  adaptive_icon_background: "#FFFFFF" # White background
+##  adaptive_icon_foreground: "assets/icon/icon_foreground.png" # Optional: foreground image, can be left out if not needed
+##  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+#  # The "flutter_lints" package below contains a set of recommended lints to
+#  # encourage good coding practices. The lint set provided by the package is
+#  # activated in the `analysis_options.yaml` file located at the root of your
+#  # package. See that file for information about deactivating specific lint
+#  # rules and activating additional ones.
+#  flutter_lints: ^5.0.0
+#
+## For information on the generic Dart part of this file, see the
+## following page: https://dart.dev/tools/pub/pubspec
+#
+## The following section is specific to Flutter packages.
+#flutter:
+#
+#  # The following line ensures that the Material Icons font is
+#  # included with your application, so that you can use the icons in
+#  # the material Icons class.
+#  uses-material-design: true
+#  assets:
+##    - assets/logo.png
+#    - assets/icon.jpg
+#    - assets/logo_2.png
+#    - assets/google.png
+#    - assets/airtime_data/mtn-logo.svg
+#    - assets/airtime_data/airtel-logo.svg
+#    - assets/airtime_data/glo-logo.svg
+#    - assets/airtime_data/9mobile-logo.svg
+#    - assets/cable/showmax.png
+#    - assets/cable/startimes.png
+#    - assets/cable/gotv.png
+#    - assets/cable/dstv.png
+#    - assets/male.png
+#    - assets/female.png
+#    - assets/videos/welcome_bg.mp4
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

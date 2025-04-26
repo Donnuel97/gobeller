@@ -64,6 +64,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _checkStoredUsername() async {
     final prefs = await SharedPreferences.getInstance();
     final savedUsername = prefs.getString('saved_username');
+    final test = prefs.getString('first_name');
     final userData = prefs.getString('user');
 
     if (savedUsername != null && savedUsername.isNotEmpty) {
@@ -76,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
 
       setState(() {
         _storedUsername = savedUsername;
-        _displayName = firstName ?? savedUsername;
+        _displayName = test ;
         _usernameController.text = savedUsername;
         _hideUsernameField = true;
       });
@@ -100,10 +101,12 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_username', username);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardPage()),
-      );
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? 'Login failed')),
@@ -167,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 Text(
                   _hideUsernameField
-                      ? "Welcome back, ${_displayName ?? _storedUsername}"
+                      ? "Welcome back, ${ _displayName}"
                       : "Log in to your account",
                   style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center,

@@ -13,7 +13,7 @@ class UserInfoCard extends StatefulWidget {
   final String accountNumber;
   final String balance;
   final String bankName;
-  final bool hasWallet; // 🔹 New prop to handle wallet state
+  final bool hasWallet;
 
   const UserInfoCard({
     super.key,
@@ -61,6 +61,7 @@ class _UserInfoCardState extends State<UserInfoCard> {
 
   Future<bool> _isTokenValid() async {
     String? token = await UserController.getToken();
+    debugPrint("Auth Token: $token"); // 👈 Print token
     return token != null && token.isNotEmpty;
   }
 
@@ -85,7 +86,6 @@ class _UserInfoCardState extends State<UserInfoCard> {
           ),
           const SizedBox(height: 10),
 
-          // 🔹 Use hasWallet flag to conditionally show content
           if (!widget.hasWallet)
             Center(
               child: ElevatedButton.icon(
@@ -100,7 +100,12 @@ class _UserInfoCardState extends State<UserInfoCard> {
                   if (isValid) {
                     Navigator.pushNamed(context, Routes.wallet);
                   } else {
-                    Navigator.pushReplacementNamed(context, Routes.login);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Session expired. Please log in again."),
+                      ),
+                    );
+                    Navigator.pushReplacementNamed(context, Routes.dashboard);
                   }
                 },
               ),

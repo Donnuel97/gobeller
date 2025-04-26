@@ -12,42 +12,47 @@ class CurrencyController with ChangeNotifier {
   double get balance => _balance;
 
   // Fetch available currencies from the API
-  static Future<List<Map<String, dynamic>>> fetchCurrencies() async {
+  static Future<List<Map<String, dynamic>>> fetchCurrencies({int retryCount = 0}) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token'); // Get the stored token
+      final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'AppID': appId,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
-        return [];  // Return an empty list if no token is found
+        return [];
       }
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token',  // Include the token in the Authorization header
-      };
 
       final response = await ApiService.getRequest(
         "/customers/currencies?page=1&items_per_page=15&category=fiat",
-        extraHeaders: extraHeaders, // Pass the token in headers
+        extraHeaders: headers,
       );
 
-      debugPrint("🔹 Currencies API Response: $response");
-
-      if (response["status"] == true) {
-        var currencies = response["data"]["data"];
-        debugPrint("Available currencies: $currencies");
-
-        // Return the list of currencies as a list of maps
-        return List<Map<String, dynamic>>.from(currencies);
-      } else {
+      if (response["status"] == false) {
         debugPrint("Error: ${response["message"]}");
+        if (response["status_code"] == 401 && retryCount < 3) {
+          debugPrint("401 Unauthorized - Retrying...");
+          return fetchCurrencies(retryCount: retryCount + 1);  // Retry up to 3 times
+        }
         return [];
       }
+
+      var currencies = response["data"]["data"];
+      return List<Map<String, dynamic>>.from(currencies);
     } catch (e) {
       debugPrint("❌ Currencies API Error: $e");
       return [];
     }
   }
+
+
 
   // Fetch available wallet types from the API
   static Future<List<Map<String, dynamic>>> fetchWalletTypes() async {

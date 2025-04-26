@@ -89,7 +89,6 @@ class _DashboardPageState extends State<DashboardPage> {
           final ad = entry.value;
           final bannerUrl = ad['banner_url'];
 
-          // Debug the banner_url
           debugPrint("🖼️ Loaded ad banner_url: $bannerUrl");
 
           return {
@@ -100,9 +99,11 @@ class _DashboardPageState extends State<DashboardPage> {
           };
         }).toList();
 
-        setState(() {
-          _ads = adsList;
-        });
+        if (mounted) {
+          setState(() {
+            _ads = adsList;
+          });
+        }
       } else {
         debugPrint("📭 No ads found in profile data.");
       }
@@ -110,6 +111,7 @@ class _DashboardPageState extends State<DashboardPage> {
       debugPrint("⚠️ userProfileRaw not found in SharedPreferences.");
     }
   }
+
 
   void _onTabSelected(int index) {
     setState(() {
@@ -314,32 +316,41 @@ class _AdCarouselState extends State<AdCarousel> {
                     ],
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
                           ad['banner_url'],
-                          width: MediaQuery.of(context).size.width,  // Full width image
-                          height: 140,
+                          width: double.infinity,
+                          height: 130,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                           const Icon(Icons.image_not_supported),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Text(
                         ad['subject'] ?? 'Ad Title',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        ad['content'] ?? '',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.grey[700]),
+                      Expanded( // NEW: ensures no overflow if text height increases
+                        child: Text(
+                          ad['content'] ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                        ),
                       ),
                     ],
                   ),
+
                 ),
               );
             },

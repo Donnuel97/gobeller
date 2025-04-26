@@ -79,12 +79,23 @@ class ProfileController {
       };
 
       final response = await ApiService.getRequest("/profile", extraHeaders: extraHeaders);
-
       debugPrint("🔹 User Profile API Response: $response");
 
       if (response["status"] == true) {
         final profileData = response["data"];
-        final walletData = profileData["get_primary_wallet"];
+        final walletData = profileData["getPrimaryWallet"];
+        final rawKyc = profileData["first_kyc_verification"];
+
+        // 🔍 Normalize KYC: Accept map, or first item in a list if applicable
+        Map<String, dynamic>? firstKycVerification;
+        if (rawKyc is Map) {
+          firstKycVerification = Map<String, dynamic>.from(rawKyc);
+        } else if (rawKyc is List && rawKyc.isNotEmpty && rawKyc[0] is Map) {
+          firstKycVerification = Map<String, dynamic>.from(rawKyc[0]);
+        } else {
+          firstKycVerification = null;
+        }
+
 
         final walletBalance = walletData?["balance"];
         final walletNumber = walletData?["wallet_number"];
@@ -117,11 +128,11 @@ class ProfileController {
           'wallet_currency': walletCurrency ?? "N/A",
           'bank_name': bankName ?? "N/A",
           'has_wallet': hasWallet,
+          'first_kyc_verification': firstKycVerification ?? {},
+          'kyc_image_encoding': firstKycVerification?["imageEncoding"] ?? '',
         };
 
-        // 🔐 Save raw profile response to local storage
         await prefs.setString('userProfileRaw', json.encode(profileData));
-
         debugPrint("✅ Saved raw profile to SharedPreferences.");
         debugPrint("✅ Parsed User Profile: $userProfile");
 
@@ -135,6 +146,8 @@ class ProfileController {
       return null;
     }
   }
+
+
 
 
   // Change Password
@@ -255,4 +268,145 @@ class ProfileController {
       return "An error occurred while changing the transaction PIN.";
     }
   }
+
+
+  // Fetch All KYC Verifications
+  static Future<List<Map<String, dynamic>>?> getKycVerifications() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+
+      if (token == null) {
+        debugPrint("❌ No authentication token found. Please login again.");
+        return null;
+      }
+
+      debugPrint("🔑 Token for KYC fetch: $token");
+
+      final extraHeaders = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final response = await ApiService.getRequest(
+        "/customers/kyc-verifications",
+        extraHeaders: extraHeaders,
+      );
+
+      debugPrint("🔹 KYC Verifications API Response: $response");
+
+      if (response["status"] == true) {
+        final kycData = response["data"]["data"] as List<dynamic>;
+
+        // Cast each KYC entry to a Map<String, dynamic> safely
+        final List<Map<String, dynamic>> verifications = kycData
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+
+        debugPrint("✅ Parsed KYC Verifications: $verifications");
+
+        return verifications;
+      } else {
+        debugPrint("⚠️ Error fetching KYC verifications: ${response["message"]}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("❌ KYC Verifications API Error: $e");
+      return null;
+    }
+  }
+
+  // Link KYC Verification
+  static Future<String> linkKycVerification({
+    required String idType,
+    required String idValue,
+    required String walletIdentifier,
+    required String transactionPin,
+  }) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+
+      if (token == null) {
+        debugPrint("❌ No authentication token found. Please login again.");
+        return "Authentication required. Please log in again.";
+      }
+
+      debugPrint("🔑 Token for link KYC: $token");
+
+      final extraHeaders = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final Map<String, dynamic> body = {
+        "id_type": idType,
+        "id_value": idValue,
+        "customer_wallet_number_or_uuid": walletIdentifier,
+        "transaction_pin": transactionPin,
+      };
+
+      final response = await ApiService.postRequest(
+        "/customers/kyc-verifications/link/verified",
+        body,
+        extraHeaders: extraHeaders,
+      );
+
+      debugPrint("🔹 Link KYC API Response: $response");
+
+      if (response["status"] == true) {
+        return "KYC linked successfully.";
+      } else {
+        return response["message"] ?? "Failed to link KYC.";
+      }
+    } catch (e) {
+      debugPrint("❌ Link KYC API Error: $e");
+      return "An error occurred while linking KYC.";
+    }
+  }
+
+  // Fetch Wallets
+  static Future<Map<String, dynamic>> fetchWallets() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+
+      if (token == null) {
+        debugPrint("❌ No authentication token found. Please login again.");
+        return {};
+      }
+
+      final extraHeaders = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final response = await ApiService.getRequest(
+        "/customers/wallets",
+        extraHeaders: extraHeaders,
+      );
+
+      debugPrint("🔹 Wallets Profile API Response: $response");
+
+      if (response["status"] == true) {
+        // Access the 'data' -> 'data' structure to get the wallet list
+        List<dynamic> walletList = response["data"]["data"];
+
+        if (walletList.isNotEmpty) {
+          return {
+            'data': walletList,  // Return the entire wallet list here
+          };
+        } else {
+          debugPrint("ℹ️ No wallets found.");
+          return {};
+        }
+      } else {
+        debugPrint("Error: ${response["message"]}");
+        return {};
+      }
+    } catch (e) {
+      debugPrint("❌ Wallets API Error: $e");
+      return {};
+    }
+  }
+
+
+
 }

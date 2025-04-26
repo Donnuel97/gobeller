@@ -16,16 +16,23 @@ class VirtualCardController with ChangeNotifier {
   String _transactionMessage = "";
   String get transactionMessage => _transactionMessage;
 
+  String _errorMessage = '';
+  String get errorMessage => _errorMessage;
 
+  // New: Store card details by card ID
+  Map<String, Map<String, dynamic>> _cardDetails = {};
+  Map<String, Map<String, dynamic>> get cardDetails => _cardDetails;
+// inside VirtualCardController
 
-
-  /// **Fetch authentication token**
-  Future<String?> _getAuthToken() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+  Map<String, dynamic>? getCardById(String cardId) {
+    return _cardDetails[cardId];
   }
 
-  /// Fetches all virtual cards
+  void setErrorMessage(String message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
   Future<void> fetchVirtualCards() async {
     _isLoading = true;
     notifyListeners();
@@ -41,13 +48,13 @@ class VirtualCardController with ChangeNotifier {
         return;
       }
 
-      final Map<String, String> headers = {
+      final headers = {
         "Accept": "application/json",
         "Authorization": "Bearer $token",
         "AppID": appId,
       };
 
-      const String endpoint = "/card-mgt/cards/virtual/list?page=1&items_per_page=20";
+      const endpoint = "/card-mgt/cards/virtual/list?page=1&items_per_page=20";
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
 
       debugPrint("🔹 Virtual Cards API Response: $response");
@@ -56,6 +63,11 @@ class VirtualCardController with ChangeNotifier {
           response["data"] != null &&
           response["data"]["data"] != null) {
         _virtualCards = List<Map<String, dynamic>>.from(response["data"]["data"]);
+
+        // Fetch balance for the first card automatically
+        if (_virtualCards.isNotEmpty) {
+          fetchCardBalanceDetails(_virtualCards.first['id']);
+        }
       } else {
         debugPrint("⚠️ Failed to fetch virtual cards: ${response["message"]}");
         _virtualCards = [];
@@ -69,6 +81,108 @@ class VirtualCardController with ChangeNotifier {
     }
   }
 
+  Future<void> fetchCardBalanceDetails(String cardId) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
+
+      if (token == null) {
+        debugPrint("❌ No auth token found.");
+        return;
+      }
+
+      final headers = {
+        "Accept": "application/json",
+        "Authorization": "Bearer $token",
+        "AppID": appId,
+      };
+
+      final endpoint = "/card-mgt/cards/virtual/$cardId/balance";
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+
+      debugPrint("💳 Card Balance Response for $cardId: $response");
+
+      if (response["status"] == true && response["data"] != null) {
+        _cardDetails[cardId] = {
+          "id": response["data"]["id"],
+          "name": response["data"]["name"],
+          "card_number": response["data"]["card_number"],
+          "masked_pan": response["data"]["masked_pan"],
+          "expiry": response["data"]["expiry"],
+          "cvv": response["data"]["cvv"],
+          "status": response["data"]["status"],
+          "type": response["data"]["type"],
+          "issuer": response["data"]["issuer"],
+          "currency": response["data"]["currency"],
+          "balance": response["data"]["balance"],
+          "balance_updated_at": response["data"]["balance_updated_at"],
+          "auto_approve": response["data"]["auto_approve"],
+          "address": response["data"]["address"],
+          "created_at": response["data"]["created_at"],
+          "updated_at": response["data"]["updated_at"],
+          "is_amount_locked": response["data"]["is_amount_locked"],
+        };
+      } else {
+        debugPrint("⚠️ Failed to fetch card details: ${response["message"]}");
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching card details: $e");
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<String> createVirtualCard({required String cardPin, required BuildContext context}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
+
+      if (token == null) {
+        return "Authentication token missing.";
+      }
+
+      final Map<String, String> headers = {
+        "Accept": "application/json",
+        "Authorization": "Bearer $token",
+        "AppID": appId,
+      };
+
+      const String endpoint = "/card-mgt/cards/virtual/create";
+      final Map<String, dynamic> body = {
+        "transaction_pin": cardPin,
+      };
+
+      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+
+      debugPrint("🆕 Create Card Response: $response");
+
+      if (response["status"] == true) {
+        await fetchVirtualCards(); // Refresh the list after creation
+        return "Virtual card created successfully.";
+      } else {
+        // Handle specific error message for insufficient funds
+        if (response["statusCode"] == 403) {
+          return "Insufficient funds to create a virtual card.";
+        } else {
+          return response["message"] ?? "Failed to create card.";
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Error creating virtual card: $e");
+      return "An error occurred while creating the card.";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+
+  /// Fetch wallets associated with the user
   Future<void> fetchWallets() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -91,9 +205,7 @@ class VirtualCardController with ChangeNotifier {
 
       debugPrint("🔹 Wallets API Response: $response");
 
-      // Check if response is a Map and contains 'data' and 'data' field (which holds the wallets)
       if (response["status"] == true && response["data"] != null && response["data"]["data"] != null) {
-        // Access the wallets list
         _sourceWallets = List<Map<String, dynamic>>.from(response["data"]["data"]);
         debugPrint("✅ Wallets fetched successfully.");
       } else {
@@ -108,95 +220,54 @@ class VirtualCardController with ChangeNotifier {
     }
   }
 
+  /// Creates a new virtual card
 
 
-  // /// **Fetches user wallets**
-  // Future<void> fetchWallets() async {
+
+  // Method to create the virtual card
+  // Future<String> createVirtualCard({required String cardPin}) async {
   //   _isLoading = true;
   //   notifyListeners();
   //
   //   try {
-  //     final String? token = await _getAuthToken();
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? token = prefs.getString('auth_token');
+  //     final String appId = prefs.getString('appId') ?? '';
+  //
   //     if (token == null) {
-  //       _transactionMessage = "❌ Authentication required.";
-  //       _isLoading = false;
-  //       notifyListeners();
-  //       return;
+  //       return "Authentication token missing."; // Error message
   //     }
   //
-  //     final response = await ApiService.getRequest(
-  //       "customers/wallets",
-  //       extraHeaders: {'Authorization': 'Bearer $token'},
-  //     );
+  //     final Map<String, String> headers = {
+  //       "Accept": "application/json",
+  //       "Authorization": "Bearer $token",
+  //       "AppID": appId,
+  //     };
   //
-  //     if (response["status"] == true && response["data"]?["data"] != null) {
-  //       final List wallets = response["data"]["data"];
+  //     const String endpoint = "/card-mgt/cards/virtual/create";
+  //     final Map<String, dynamic> body = {
+  //       "transaction_pin": cardPin,
+  //     };
   //
-  //       _sourceWallets = wallets.map((wallet) {
-  //         return {
-  //           "account_number": wallet["wallet_number"] ?? "",
-  //           "available_balance": wallet["balance"] ?? "0.00",
-  //           "currency_symbol": wallet["currency"]?["symbol"] ?? "₦",
-  //           "wallet_type": wallet["wallet_type"]?["name"] ?? "Default Wallet"
-  //         };
-  //       }).toList();
+  //     final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+  //
+  //     debugPrint("🆕 Create Card Response: $response");
+  //
+  //     if (response["status"] == true) {
+  //       await fetchVirtualCards(); // Refresh the list after creation
+  //       return "Virtual card created successfully."; // Success message
   //     } else {
-  //       _transactionMessage = "⚠️ Unable to fetch wallets.";
-  //       _sourceWallets = [];
+  //       return response["message"] ?? "Failed to create card."; // Error message
   //     }
   //   } catch (e) {
-  //     print("Error: $e");
-  //     _transactionMessage = "❌ Error fetching wallets. Please try again.";
-  //     _sourceWallets = [];
+  //     debugPrint("❌ Error creating virtual card: $e");
+  //     return "An error occurred while creating the card."; // Error message
+  //   } finally {
+  //     _isLoading = false;
+  //     notifyListeners();
   //   }
-  //
-  //   _isLoading = false;
-  //   notifyListeners();
   // }
 
-  /// Creates a new virtual card
-  Future<String> createVirtualCard({required String cardPin}) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-      final String appId = prefs.getString('appId') ?? '';
-
-      if (token == null) {
-        return "Authentication token missing.";
-      }
-
-      final Map<String, String> headers = {
-        "Accept": "application/json",
-        "Authorization": "Bearer $token",
-        "AppID": appId,
-      };
-
-      const String endpoint = "/card-mgt/cards/virtual/create";
-      final Map<String, dynamic> body = {
-        "card_pin": cardPin,
-      };
-
-      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
-
-      debugPrint("🆕 Create Card Response: $response");
-
-      if (response["status"] == true) {
-        await fetchVirtualCards(); // Refresh the list after creation
-        return "Virtual card created successfully.";
-      } else {
-        return response["message"] ?? "Failed to create card.";
-      }
-    } catch (e) {
-      debugPrint("❌ Error creating virtual card: $e");
-      return "An error occurred while creating the card.";
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
 
   /// Toggles virtual card lock status (block/unblock)
   Future<String> toggleCardLockStatus(String cardId, bool isCurrentlyLocked) async {
@@ -241,7 +312,6 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   /// Adds funds to a virtual card using a source wallet and payment channel
   Future<String> addFundsToCard({
@@ -307,6 +377,4 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
-
-
 }

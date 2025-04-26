@@ -23,7 +23,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+    _videoController = VideoPlayerController.asset("")
       ..initialize().then((_) {
         setState(() {});
         _videoController!.setLooping(true);
@@ -127,25 +127,24 @@ class _WelcomePageState extends State<WelcomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                logoUrl != null
-                    ? Image.network(
-                  logoUrl,
-                  width: 188,
-                  height: 188,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const SizedBox(
-                      height: 188,
-                      width: 188,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.image_not_supported, size: 100, color: Colors.grey);
-                  },
-                )
-                    : const Icon(Icons.image, size: 100, color: Colors.grey),
+                if (logoUrl != null)
+                  Image.network(
+                    logoUrl,
+                    width: 188,
+                    height: 188,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        height: 188,
+                        width: 188,
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const SizedBox.shrink(); // <-- show nothing on error
+                    },
+                  ),
                 const SizedBox(height: 32),
                 Text(
                   welcomeTitle,
@@ -197,6 +196,7 @@ class _WelcomePageState extends State<WelcomePage> {
       ],
     );
   }
+
 
   Widget _buildErrorState(BuildContext context) {
     final orgController = Provider.of<OrganizationController>(context, listen: false);

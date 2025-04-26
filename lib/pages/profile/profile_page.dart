@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:gobeller/controller/profileControllers.dart'; // Import the ProfileController
+import 'package:gobeller/controller/profileControllers.dart';
+import 'package:gobeller/controller/kyc_controller.dart';// Import the ProfileController
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';  // To decode the base64 image data
+import 'dart:typed_data';  // For working with binary data
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -10,10 +13,27 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // List of all available ID Types
+  final List<String> _allIdTypes = ['nin', 'bvn', 'passport-number'];
+
+  // List of available ID Types that are not yet linked in KYC verifications
+  List<String> _availableIdTypes = [];
+
+  // Selected ID Type (initially set to 'nin')
+  // String? _selectedIdType = 'nin'; // Default value, can be changed based on your logic
+
   Map<String, dynamic>? userProfile;
   Map<String, dynamic>? supportDetails;
-
+  String? _selectedIdType;
+  String? _selectedWalletIdentifier;
   bool isLoading = true;
+  bool _loading = false; // Add this variable to track loading state
+
+  final TextEditingController _idValueController = TextEditingController();
+  final TextEditingController _transactionPinController = TextEditingController();
+// Add this to your State class
+
+
 
   @override
   void initState() {
@@ -22,19 +42,30 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
-    final profile = await ProfileController.fetchUserProfile();
-    setState(() {
-      userProfile = profile;
-      isLoading = false;
-    });
-    final support = await ProfileController.fetchCustomerSupportDetails();
-    setState(() {
-      userProfile = profile;
-      supportDetails = support;
-      isLoading = false;
-    });
+    try {
+      final results = await Future.wait([
+        ProfileController.fetchUserProfile(),
+        ProfileController.fetchCustomerSupportDetails(),
+      ]);
 
+      if (mounted) {
+        setState(() {
+          userProfile = results[0];
+          supportDetails = results[1];
+          isLoading = false;
+        });
+      }
+    } catch (e, stack) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+      debugPrint('❌ Error loading profile: $e');
+      debugPrintStack(stackTrace: stack);
+    }
   }
+
 
   ImageProvider _getGenderBasedImage(String? gender) {
     switch (gender?.toLowerCase()) {
@@ -65,42 +96,47 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   // Profile Image & Name
                   // Profile Image & Name
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundImage: userProfile!['profile_image_url'] != null &&
-                              userProfile!['profile_image_url'].isNotEmpty
-                              ? NetworkImage(userProfile!['profile_image_url'])
-                              : _getGenderBasedImage(userProfile!['gender']),
-                          backgroundColor: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Name
-                        Text(
-                          userProfile!['full_name'] ?? "N/A",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-
-                        // Email
-                        Text(
-                          userProfile!['email'] ?? "N/A",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+              Center(
+              child: Column(
+              mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 60,
+                    backgroundImage: userProfile!['first_kyc_verification'] != null &&
+                        userProfile!['first_kyc_verification']['imageEncoding'] != null &&
+                        userProfile!['first_kyc_verification']['imageEncoding'].isNotEmpty
+                        ? MemoryImage(
+                        base64Decode(userProfile!['first_kyc_verification']['imageEncoding']))
+                        : userProfile!['profile_image_url'] != null &&
+                        userProfile!['profile_image_url'].isNotEmpty
+                        ? NetworkImage(userProfile!['profile_image_url'])
+                        : _getGenderBasedImage(userProfile!['gender']),
+                    backgroundColor: Colors.grey[300],
                   ),
+                  const SizedBox(height: 12),
+
+                  // Name
+                  Text(
+                    userProfile!['full_name'] ?? "N/A",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  // Email
+                  Text(
+                    userProfile!['email'] ?? "N/A",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                ),
+              ),
 
                   const SizedBox(height: 20),
 
@@ -126,6 +162,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ? Colors.red
                           : Colors.grey,
                     ),
+                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status'])
                   ]),
 
                   const SizedBox(height: 10),
@@ -135,16 +172,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
 
 
-                  // 💰 Wallet Information Section
-                  _buildProfileSection("Wallet Information", [
-                    _buildProfileItem(Icons.wallet, "Wallet Number", userProfile!['wallet_number']),
-                    _buildProfileItem(
-                      Icons.attach_money,
-                      "Wallet Balance",
-                      "${userProfile!['wallet_currency']} ${double.parse(userProfile!['wallet_balance'].toString()).toStringAsFixed(2)}",
-                    ),
-                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
-                  ]),
+                  // // 💰 Wallet Information Section
+                  // _buildProfileSection("Wallet Information", [
+                  //   _buildProfileItem(Icons.wallet, "Wallet Number", userProfile!['wallet_number']),
+                  //   _buildProfileItem(
+                  //     Icons.attach_money,
+                  //     "Wallet Balance",
+                  //     "${userProfile!['wallet_currency']} ${double.parse(userProfile!['wallet_balance'].toString()).toStringAsFixed(2)}",
+                  //   ),
+                  //   _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
+                  // ]),
 
                   const SizedBox(height: 30),
 
@@ -265,8 +302,6 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
             ),
             const Divider(),
-
-            // Change Password Item
             ListTile(
               leading: const Icon(Icons.lock, color: Colors.blue),
               title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w500)),
@@ -274,13 +309,32 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: _showChangePasswordDialog,
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
-
-            // Change PIN Item
             ListTile(
               leading: const Icon(Icons.pin, color: Colors.blue),
               title: const Text('Change PIN', style: TextStyle(fontWeight: FontWeight.w500)),
               trailing: const Icon(Icons.chevron_right),
               onTap: _showChangePinDialog,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link, color: Colors.blue),
+              title: const Text('Link KYC', style: TextStyle(fontWeight: FontWeight.w500)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final profileData = await ProfileController.fetchUserProfile();
+                final walletsData = await ProfileController.fetchWallets();
+
+                if (profileData != null && walletsData?['data'] is List) {
+                  _showLinkKycDialog(
+                    Map<String, dynamic>.from(profileData),
+                    List<Map<String, dynamic>>.from(walletsData['data']),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Unable to locate wallet, Please create a wallet')),
+                  );
+                }
+              },
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
           ],
@@ -289,6 +343,275 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Show Link KYC Dialog
+  void _showLinkKycDialog(Map<String, dynamic> profileData, List<Map<String, dynamic>> walletList) async {
+    final kycVerifications = await KycVerificationController.fetchKycVerifications();
+
+    if (kycVerifications != null && kycVerifications.isNotEmpty) {
+      final List<String> usedTypes = kycVerifications
+          .map((e) => (e['documentType'] as String).toUpperCase())
+          .toList();
+
+      final List<String> allIdTypes = ['nin', 'bvn', 'passport_number'];
+      List<String> availableIdTypes = [];
+
+      if (usedTypes.contains('NIN') && usedTypes.contains('BVN')) {
+        availableIdTypes = ['passport_number'];
+      } else {
+        availableIdTypes = allIdTypes
+            .where((id) => !usedTypes.contains(id.toUpperCase()))
+            .toList();
+      }
+
+      final List<String> walletIdentifiers = walletList
+          .map((wallet) => wallet['wallet_number'] ?? wallet['wallet_uuid'] ?? '')
+          .where((id) => id.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Center(
+                      child: Text(
+                        "Link KYC Document",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ID Type Dropdown
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'ID Type',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedIdType,
+                      items: availableIdTypes
+                          .map((type) => DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type.toUpperCase()),
+                      ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedIdType = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ID Value
+                    TextFormField(
+                      controller: _idValueController,
+                      decoration: const InputDecoration(
+                        labelText: 'ID Value',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Wallet Identifier Dropdown
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Wallet',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedWalletIdentifier,
+                      items: walletIdentifiers
+                          .map((id) => DropdownMenuItem<String>(
+                        value: id,
+                        child: Text(id),
+                      ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedWalletIdentifier = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Transaction Pin
+                    TextFormField(
+                      controller: _transactionPinController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Transaction PIN',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Buttons Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Cancel
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        // Link Button
+                        ElevatedButton(
+                          onPressed: _loading
+                              ? null
+                              : () async {
+                            if (_selectedIdType == null ||
+                                _idValueController.text.isEmpty ||
+                                _selectedWalletIdentifier == null ||
+                                _transactionPinController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please fill all fields")),
+                              );
+                              return;
+                            }
+
+                            setState(() {
+                              _loading = true;
+                            });
+
+                            String result = await ProfileController.linkKycVerification(
+                              idType: _selectedIdType!,
+                              idValue: _idValueController.text,
+                              walletIdentifier: _selectedWalletIdentifier!,
+                              transactionPin: _transactionPinController.text,
+                            );
+
+                            setState(() {
+                              _loading = false;
+                            });
+
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text(result)));
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                              : const Text(
+                            'Link',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to retrieve KYC verifications')),
+      );
+    }
+  }
+
+
+
+
+// Build the Form
+  // Build the Form
+  Widget _buildLinkKycForm(List<String> idTypes, List<String> walletIds) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selectedIdType,
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedIdType = newValue!;
+            });
+          },
+          decoration: const InputDecoration(
+            labelText: 'ID Type',
+          ),
+          items: idTypes.map<DropdownMenuItem<String>>((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+        ),
+        TextField(
+          controller: _idValueController,
+          decoration: const InputDecoration(
+            labelText: 'ID Value',
+          ),
+        ),
+        DropdownButtonFormField<String>(
+          value: _selectedWalletIdentifier,
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedWalletIdentifier = newValue!;
+            });
+          },
+          decoration: const InputDecoration(
+            labelText: 'Wallet Identifier',
+          ),
+          items: walletIds.map((id) {
+            return DropdownMenuItem<String>(
+              value: id,
+              child: Text(id),
+            );
+          }).toList(),
+        ),
+        TextField(
+          controller: _transactionPinController,
+          decoration: const InputDecoration(
+            labelText: 'Transaction Pin',
+            hintText: 'Enter your transaction pin',
+          ),
+          obscureText: true,
+        ),
+      ],
+    );
+  }
 
   // Show Change Password Dialog
   void _showChangePasswordDialog() {
@@ -606,3 +929,4 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+

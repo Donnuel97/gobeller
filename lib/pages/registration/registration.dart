@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart'; // 👈 Add this
 import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/registration_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -34,13 +39,40 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _showFullForm = false;
   bool _hasPopulatedFields = false;
 
+
+
+  Color? _primaryColor;
+  Color? _secondaryColor;
+  String? _logoUrl;  // Variable to store the logo URL
+
+
+  // Fetch the primary color and logo URL from SharedPreferences
+  Future<void> _loadPrimaryColorAndLogo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');  // Using the correct key name for settings
+
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
+
+      final primaryColorHex = data['customized-app-primary-color'];
+      final secondaryColorHex = data['customized-app-secondary-color'];
+      final logoUrl = data['customized-app-logo-url'];  // Fetch logo URL
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+        _logoUrl = logoUrl;  // Save the logo URL
+      });
+    }
+  }
   VideoPlayerController? _videoController;
 
   @override
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+    _videoController = VideoPlayerController.asset("")
       ..initialize().then((_) {
         setState(() {});
         _videoController!
@@ -48,6 +80,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           ..setVolume(0)
           ..play();
       });
+    _loadPrimaryColorAndLogo();
   }
 
   @override
@@ -115,7 +148,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           else
             Container(color: Colors.black),
 
-          Container(color: Colors.black.withOpacity(0.8)),
+          Container(
+            color: const Color(0xCC051330),
+          ),
+
 
           SafeArea(
             child: Center(
@@ -126,7 +162,32 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Image.asset("assets/logo.png", width: 128, height: 128),
+                      _logoUrl != null
+                          ? Image.network(
+                        _logoUrl!,
+                        width: 128,
+                        height: 128,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          } else {
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                    (loadingProgress.expectedTotalBytes ?? 1)
+                                    : null,
+                              ),
+                            );
+                          }
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.image_not_supported, size: 128, color: Colors.grey);
+                        },
+                      )
+                          : const Icon(Icons.image, size: 128, color: Colors.grey),
+
                       const SizedBox(height: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -470,9 +531,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 : null,
             child: ninController.isSubmitting
                 ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
+                : Text(
               'Register',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(color: _primaryColor, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ),

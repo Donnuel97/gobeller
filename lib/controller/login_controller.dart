@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:gobeller/utils/api_service.dart';
+import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginController with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  /// Attempt to log in with [username] and [password].
-  /// Returns a map with `success` and `message`.
   Future<Map<String, dynamic>> loginUser({
     required String username,
     required String password,
@@ -16,17 +18,15 @@ class LoginController with ChangeNotifier {
     _setLoading(true);
 
     try {
-      // 1. Grab the existing AppID from prefs
       final prefs = await SharedPreferences.getInstance();
       final String appId = prefs.getString('appId') ?? '';
       if (appId.isEmpty) {
         return {
           'success': false,
-          'message': 'App configuration missing. Please restart the app.'
+          'message': '⚙️ App configuration missing. Please restart the app.'
         };
       }
 
-      // 2. Prepare request
       const String endpoint = '/login';
       final headers = {
         'Accept': 'application/json',
@@ -38,9 +38,9 @@ class LoginController with ChangeNotifier {
         'password': password,
       };
 
-      // 3. Call the API
-      final response =
-      await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+      // ⚡ Add timeout to request
+      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers)
+          .timeout(const Duration(seconds: 10));
 
       final bool status = response['status'] == true;
       final String message = (response['message'] ?? '').toString().trim();
@@ -48,7 +48,6 @@ class LoginController with ChangeNotifier {
       if (status && response['data'] != null) {
         final data = response['data'] as Map<String, dynamic>;
 
-        // 4. Extract and persist token
         final String? token = data['token'] as String?;
         if (token == null || token.isEmpty) {
           return {
@@ -58,15 +57,22 @@ class LoginController with ChangeNotifier {
         }
         await prefs.setString('auth_token', token);
 
-        // 5. (Optional) Persist profile JSON for later use
         final profile = data['profile'];
         if (profile != null) {
           await prefs.setString('user_profile', jsonEncode(profile));
+
+          final String? firstName = profile['first_name'];
+          final String? fullName = profile['full_name'];
+          if (firstName != null) {
+            await prefs.setString('first_name', firstName);
+          }
+          if (fullName != null) {
+            await prefs.setString('full_name', fullName);
+          }
         }
 
-        return {'success': true, 'message': 'Login successful!'};
+        return {'success': true, 'message': '✅ Login successful!'};
       } else {
-        // 6. Friendly error mapping
         String friendly = '❌ Login failed. Please try again.';
         if (message.toLowerCase().contains('invalid credentials')) {
           friendly = '⚠️ Incorrect username or password.';
@@ -75,10 +81,34 @@ class LoginController with ChangeNotifier {
         }
         return {'success': false, 'message': friendly};
       }
-    } catch (e) {
+
+    } on SocketException {
       return {
         'success': false,
-        'message': 'Network error occurred. Please check your connection.'
+        'message': '📶 No internet connection. Please check your network and try again.'
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': '⏱️ Login request timed out. Please try again shortly.'
+      };
+    } on ClientException {
+      return {
+        'success': false,
+        'message': '🌐 Unable to connect to server. Please try again later.'
+      };
+    } catch (e) {
+      final error = e.toString().toLowerCase();
+      if (error.contains("socketexception") || error.contains("failed host lookup")) {
+        return {
+          'success': false,
+          'message': '📡 Network error. Please check your internet connection.'
+        };
+      }
+
+      return {
+        'success': false,
+        'message': '❌ Something went wrong. Please try again shortly.'
       };
     } finally {
       _setLoading(false);
@@ -90,7 +120,6 @@ class LoginController with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Utility to show an alert dialog if you need it
   void showMessage(BuildContext context, String title, String message) {
     showDialog(
       context: context,

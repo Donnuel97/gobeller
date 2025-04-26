@@ -10,7 +10,7 @@ class CardDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String cardNumber = card["card_number"] ?? "**** **** **** ****";
+    final String cardNumber = card["id"] ?? "**** **** **** ****";
     final String expiryDate = card["expiration_date"] ?? "--/--";
     final String cvv = jsonDecode(card["card_response_metadata"] ?? '{}')["cvv"] ?? "***";
     final String name = jsonDecode(card["card_response_metadata"] ?? '{}')["name"] ?? "Card Holder";
