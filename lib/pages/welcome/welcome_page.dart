@@ -73,11 +73,13 @@ class _WelcomePageState extends State<WelcomePage> {
         final orgData = orgController.organizationData?['data'] ?? {};
 
         final primaryColorHex = settings['customized-app-primary-color'] ?? '#6200EE';
+        final tertiaryColorHex = settings['customized-app-tertiary-color'] ?? '#000000';
         final logoUrl = settings['customized-app-logo-url'];
-        final welcomeTitle = "Welcome to ${orgData['short_name'] ?? 'Our'} Thrift";
+        final welcomeTitle = "Welcome to ${orgData['short_name'] ?? 'Our'} ";
         final welcomeDescription = orgData['description'] ?? "We are here to help you achieve your goals.";
 
-        final primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        final primaryColor = parseColor(primaryColorHex, fallbackHex: '#6200EE');
+        final tertiaryColor = parseColor(tertiaryColorHex, fallbackHex: '#000000');
 
         return Scaffold(
           body: Stack(
@@ -94,13 +96,12 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 )
               else
-                Container(color: Colors.black), // fallback background
+                Container(color: Colors.black),
 
-              // Dark overlay
-              Container(
-                color: Colors.black.withOpacity(0.8), // lighter
-                // color: Colors.black.withOpacity(0.8), // darker
-
+              // Dark overlay with tertiary color and fade animation
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                color: tertiaryColor.withOpacity(0.8),
               ),
 
               // Content
@@ -130,19 +131,33 @@ class _WelcomePageState extends State<WelcomePage> {
                 if (logoUrl != null)
                   Image.network(
                     logoUrl,
-                    width: 188,
-                    height: 188,
+                    width: 128,
+                    height: 128,
                     fit: BoxFit.contain,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const SizedBox(
-                        height: 188,
-                        width: 188,
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      } else {
+                        return SizedBox(
+                          width: 128,
+                          height: 128,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }
                     },
                     errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink(); // <-- show nothing on error
+                      return const Center(
+                        child: Text(
+                          'Getting Data...',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      );
                     },
                   ),
                 const SizedBox(height: 32),
@@ -197,7 +212,6 @@ class _WelcomePageState extends State<WelcomePage> {
     );
   }
 
-
   Widget _buildErrorState(BuildContext context) {
     final orgController = Provider.of<OrganizationController>(context, listen: false);
 
@@ -226,5 +240,14 @@ class _WelcomePageState extends State<WelcomePage> {
         ),
       ),
     );
+  }
+
+  // Helper to parse color safely
+  Color parseColor(String hexColor, {String fallbackHex = '#000000'}) {
+    try {
+      return Color(int.parse(hexColor.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return Color(int.parse(fallbackHex.replaceAll('#', '0xFF')));
+    }
   }
 }

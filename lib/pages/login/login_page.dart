@@ -136,6 +136,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -145,32 +146,44 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _logoUrl != null
-                    ? Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image.network(
-                      _logoUrl!,
-                      width: 128,
-                      height: 128,
-                      fit: BoxFit.contain,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return const CircularProgressIndicator();
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.image_not_supported,
-                            size: 128, color: Colors.grey);
-                      },
-                    ),
-                  ],
-                )
-                    : const Icon(Icons.image, size: 128, color: Colors.grey),
+                if (_logoUrl != null)
+                  Image.network(
+                    _logoUrl!,
+                    width: 128,
+                    height: 128,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      } else {
+                        return SizedBox(
+                          width: 128,
+                          height: 128,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                  (loadingProgress.expectedTotalBytes ?? 1)
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Text(
+                          'Getting Data...',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ); // Show "Getting Data..." if image fails to load
+                    },
+                  ),
                 const SizedBox(height: 16),
 
                 Text(
                   _hideUsernameField
-                      ? "Welcome back, ${ _displayName}"
+                      ? "Welcome back, ${_displayName ?? ''}"
                       : "Log in to your account",
                   style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center,
@@ -196,8 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                             : Icons.visibility_outlined,
                       ),
                       onPressed: () {
-                        setState(() =>
-                        _isPasswordObscured = !_isPasswordObscured);
+                        setState(() => _isPasswordObscured = !_isPasswordObscured);
                       },
                     ),
                   ),
@@ -246,4 +258,5 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
 }

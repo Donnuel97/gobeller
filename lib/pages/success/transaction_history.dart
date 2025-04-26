@@ -168,21 +168,31 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
                     // Row for Close and Download buttons positioned left and right
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Close button on the left
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Close Receipt"),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text("Close Receipt"),
+                          ),
                         ),
-
-                        // Download as PDF button on the right
-                        ElevatedButton(
-                          onPressed: () => _downloadTransactionAsPDF(transaction),
-                          child: const Text("Download as PDF"),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _downloadTransactionAsPDF(transaction),
+                            child: const Text("Download as PDF"),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _shareTransactionAsPDF(transaction),
+                            child: const Text("Share Receipt"),
+                          ),
                         ),
                       ],
                     ),
+
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -208,23 +218,97 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       ),
     );
   }
+  Future<void> _shareTransactionAsPDF(Map<String, dynamic> transaction) async {
+    final pdf = pw.Document();
 
+    final prefs = await SharedPreferences.getInstance();
+    final logoUrl = prefs.getString('customized-app-logo-url');
+    final customerSupportData = prefs.getString('customerSupportData');
 
-// // Helper function to build Table cells
-//   Widget _buildTableCell(String value) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-//       child: Text(
-//         value,
-//         style: const TextStyle(
-//           fontSize: 16,
-//           color: Colors.black87,
-//         ),
-//         textAlign: TextAlign.left,
-//       ),
-//     );
-//   }
+    final customerSupport = customerSupportData != null
+        ? jsonDecode(customerSupportData)['data']
+        : null;
 
+    Uint8List? logoImageBytes;
+    if (logoUrl != null) {
+      try {
+        final response = await http.get(Uri.parse(logoUrl));
+        if (response.statusCode == 200) {
+          logoImageBytes = response.bodyBytes;
+        }
+      } catch (e) {
+        print("Error loading logo image: $e");
+      }
+    }
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.SizedBox(width: 100),
+                  logoImageBytes != null
+                      ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
+                      : pw.SizedBox(width: 100),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  'Transaction Receipt',
+                  style: pw.TextStyle(
+                    fontSize: 26,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(width: 1, color: PdfColors.grey),
+                children: [
+                  _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+                  _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
+                  _buildTableRow("Description", transaction["description"] ?? "No Description"),
+                  _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              if (customerSupport != null) ...[
+                pw.Divider(),
+                pw.SizedBox(height: 10),
+                pw.Text('Customer Support:', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Email: ${customerSupport['official_email']}'),
+                pw.Text('Phone: ${customerSupport['official_telephone']}'),
+                pw.Text('Website: ${customerSupport['public_existing_website']}'),
+                if (customerSupport['address'] != null && customerSupport['address']['country'] != null)
+                  pw.Text('Country: ${customerSupport['address']['country']}'),
+              ],
+              pw.SizedBox(height: 20),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Generated on ${DateFormat.yMMMd().format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final pdfBytes = await pdf.save();
+
+    await Printing.sharePdf(
+      bytes: pdfBytes,
+      filename: 'transaction_receipt.pdf',
+    );
+  }
 
 
   // Function to generate PDF and download it
@@ -363,25 +447,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 
 
-
-  // // Helper function to create table rows
-  // pw.TableRow _buildTableRow(String title, String value) {
-  //   return pw.TableRow(
-  //     children: [
-  //       pw.Padding(
-  //         padding: const pw.EdgeInsets.all(8.0),
-  //         child: pw.Text(
-  //           title,
-  //           style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-  //         ),
-  //       ),
-  //       pw.Padding(
-  //         padding: const pw.EdgeInsets.all(8.0),
-  //         child: pw.Text(value),
-  //       ),
-  //     ],
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
