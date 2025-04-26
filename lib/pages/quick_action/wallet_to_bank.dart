@@ -46,63 +46,6 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
     super.dispose();
   }
 
-  // void _showTransactionSummary() {
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     builder: (context) {
-  //       return Padding(
-  //         padding: const EdgeInsets.all(16.0),
-  //         child: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             const Text("Transaction Summary", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-  //             ListTile(title: const Text("Bank"), subtitle: Text(selectedBank ?? "Not Selected")),
-  //             ListTile(title: const Text("Account Number"), subtitle: Text(_accountNumberController.text)),
-  //             ListTile(title: const Text("Beneficiary"), subtitle: Text(context.read<WalletToBankTransferController>().beneficiaryName)),
-  //             ListTile(title: const Text("Amount"), subtitle: Text("₦ ${_amountController.text}")),
-  //             ListTile(title: const Text("Narration"), subtitle: Text(_narrationController.text.isNotEmpty ? _narrationController.text : "Wallet to Bank Transfer")),
-  //
-  //             const SizedBox(height: 16),
-  //             TextFormField(
-  //               controller: _pinController,
-  //               keyboardType: TextInputType.number,
-  //               obscureText: true,
-  //               decoration: const InputDecoration(
-  //                 labelText: "Transaction PIN",
-  //                 border: OutlineInputBorder(),
-  //               ),
-  //               inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
-  //               validator: (value) => value!.length != 4 ? "Enter a valid 4-digit PIN" : null,
-  //             ),
-  //             const SizedBox(height: 20),
-  //
-  //             Row(
-  //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //               children: [
-  //                 TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-  //                 Consumer<WalletToBankTransferController>(
-  //                   builder: (context, controller, child) {
-  //                     return ElevatedButton(
-  //                       onPressed: controller.isProcessing || isLoading ? null : _confirmTransfer,
-  //                       child: controller.isProcessing || isLoading
-  //                           ? const SizedBox(
-  //                         width: 20,
-  //                         height: 20,
-  //                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-  //                       )
-  //                           : const Text("Proceed"),
-  //                     );
-  //                   },
-  //                 ),
-  //               ],
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
 
 
   void _showTransactionSummary() {
@@ -199,7 +142,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       isLoading = true;
     });
 
-    Navigator.pop(context); // Close the PIN sheet or dialog
+    Navigator.pop(context); // Close the PIN modal
 
     final result = await controller.completeBankTransfer(
       sourceWallet: selectedSourceWallet!,
@@ -216,13 +159,18 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
 
     if (!mounted) return;
 
+    if (result['success']) {
+      // 🔥 CLEAR the form if successful
+      _resetForm();
+    }
+
     Navigator.pushNamed(
       context,
       '/bank_result',
       arguments: {
         'success': result['success'],
         'message': result['message'],
-        'data': result['data'], // optional, for transaction details
+        'data': result['data'],
       },
     );
   }

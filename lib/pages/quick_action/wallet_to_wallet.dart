@@ -110,15 +110,22 @@ class _WalletToWalletTransferPageState extends State<WalletToWalletTransferPage>
   }
 
   void _navigateToTransferResult(bool success, String message) {
+    final controller = Provider.of<WalletTransferController>(context, listen: false);
+
+    if (success) {
+      _resetForm(controller); // Clear the form first
+    }
+
     Navigator.pushNamed(
       context,
-      Routes.transfer_result, // make sure this route exists in your routes config
+      Routes.transfer_result,
       arguments: {
         'success': success,
         'message': message,
       },
     );
   }
+
 
   void showTransactionSummaryModal(WalletTransferController controller) async {
     final primaryColor = await _getColorFromPrefs('customized-app-primary-color', const Color(0xFF171E3B));
