@@ -161,86 +161,87 @@ class CurrencyController with ChangeNotifier {
         extraHeaders: headers,
       );
 
-      debugPrint("✅ Wallet creation response: $response");
+      debugPrint("✅ Wallet creation raw response: $response");
 
-      // Check if status is error and throw with custom message
-      if (response is Map<String, dynamic> && response["status"] == "error") {
-        throw Exception(response["message"] ?? "An unknown error occurred");
+      if (response is Map<String, dynamic>) {
+        final statusCode = response["statusCode"];
+        final status = response["status"];
+        final message = response["message"];
+
+        // If server sent statusCode 500, force nice message
+        if (statusCode == 500) {
+          throw Exception("Oops, could not get an account for you right now. Try again later.");
+        }
+
+        // If API status field says "error", throw the provided message
+        if (status == "error") {
+          throw Exception(message ?? "An unknown error occurred.");
+        }
+
+        return response;
+      } else {
+        // If response is totally invalid
+        throw Exception("Oops, could not get an account for you right now. Try again later.");
       }
-
-      return response;
     } catch (e) {
       debugPrint("❌ Error creating wallet: $e");
 
-      // Pass back the error to the UI in a way that can be shown nicely
-      throw Exception(e.toString().replaceAll("Exception: ", ""));
+      String errorMessage = e.toString().replaceFirst("Exception: ", "");
+
+      // If error is unexpected network/server-side, override with friendly message
+      if (errorMessage.contains("SocketException") || errorMessage.contains("TimeoutException")) {
+        errorMessage = "Oops, could not get an account for you right now. Try again later.";
+      }
+
+      throw Exception(errorMessage);
     }
   }
 
 
-// Create a new wallet
-  // Future<void> createNewWallet({
-  //   required String accountType,
-  //   required String bankId,
-  //   required String walletTypeId,
-  //   required String currencyId,
-  //   required BuildContext context,
-  //   }) async {
-  //   _isLoading = true;
-  //   notifyListeners();
-  //
+
+
+
+// static Future<dynamic> createWallet(Map<String, dynamic> body) async {
   //   try {
   //     final SharedPreferences prefs = await SharedPreferences.getInstance();
   //     final String? token = prefs.getString('auth_token');
+  //     final String appId = prefs.getString('appId') ?? '';
   //
   //     if (token == null) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(content: Text("❌ Authentication required. Please log in again.")),
-  //       );
-  //       _isLoading = false;
-  //       notifyListeners();
-  //       return;
+  //       debugPrint("❌ No auth token found.");
+  //       throw Exception("Unauthorized: Please login again.");
   //     }
   //
-  //     final Map<String, dynamic> body = {
-  //       "account_type": accountType,
-  //       "bank_id": bankId,
-  //       "wallet_type_id": walletTypeId,
-  //       "currency_id": currencyId,
+  //     final headers = {
+  //       'Authorization': 'Bearer $token',
+  //       'Content-Type': 'application/json',
+  //       'AppID': appId,
   //     };
   //
-  //     final Map<String, dynamic> requestBodyWithHeaders = {
-  //       'data': body,
-  //       'headers': {'Authorization': 'Bearer $token'},
-  //     };
+  //     debugPrint("📤 Submitting wallet creation with body: $body");
   //
   //     final response = await ApiService.postRequest(
-  //       "/customers/wallets", requestBodyWithHeaders,
+  //       "/customers/wallets",
+  //       body,
+  //       extraHeaders: headers,
   //     );
   //
-  //     debugPrint("🔹 Create Wallet API Response: $response");
+  //     debugPrint("✅ Wallet creation response: $response");
   //
-  //     if (response != null && response["status"] == true) {
-  //       _balance = response["data"]["balance"].toDouble();
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("✅ Wallet created successfully! New Balance: $_balance")),
-  //       );
-  //     } else {
-  //       debugPrint("⚠️ Error in wallet creation: ${response?["message"]}");
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("⚠️ ${response["message"] ?? "Failed to create wallet"}"), backgroundColor: Colors.red),
-  //       );
+  //     // Check if status is error and throw with custom message
+  //     if (response is Map<String, dynamic> && response["status"] == "error") {
+  //       throw Exception(response["message"] ?? "An unknown error occurred");
   //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Failed to create wallet: $e");
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text("❌ Failed to create wallet: $e"), backgroundColor: Colors.red),
-  //     );
-  //   }
   //
-  //   _isLoading = false;
-  //   notifyListeners();
+  //     return response;
+  //   } catch (e) {
+  //     debugPrint("❌ Error creating wallet: $e");
+  //
+  //     // Pass back the error to the UI in a way that can be shown nicely
+  //     throw Exception(e.toString().replaceAll("Exception: ", ""));
+  //   }
   // }
+
 
 
 

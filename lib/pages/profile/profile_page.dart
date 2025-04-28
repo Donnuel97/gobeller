@@ -4,6 +4,7 @@ import 'package:gobeller/controller/kyc_controller.dart';// Import the ProfileCo
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';  // To decode the base64 image data
 import 'dart:typed_data';  // For working with binary data
+import 'package:flutter/services.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -344,6 +345,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Show Link KYC Dialog
+  void showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+
   void _showLinkKycDialog(Map<String, dynamic> profileData, List<Map<String, dynamic>> walletList) async {
     final kycVerifications = await KycVerificationController.fetchKycVerifications();
 
@@ -456,7 +467,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         labelText: 'Transaction PIN',
                         border: OutlineInputBorder(),
                       ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly, // Only allow digits
+                        LengthLimitingTextInputFormatter(4), // Limit to 4 digits
+                      ],
                     ),
+
                     const SizedBox(height: 20),
 
                     // Buttons Row
@@ -496,21 +512,22 @@ class _ProfilePageState extends State<ProfilePage> {
                               _loading = true;
                             });
 
-                            String result = await ProfileController.linkKycVerification(
+                            final result = await ProfileController.linkKycVerification(
                               idType: _selectedIdType!,
                               idValue: _idValueController.text,
                               walletIdentifier: _selectedWalletIdentifier!,
                               transactionPin: _transactionPinController.text,
                             );
 
+                            showSnackbar(result['message'] ?? 'Operation completed');
+
                             setState(() {
                               _loading = false;
                             });
 
                             Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text(result)));
                           },
+
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).primaryColor,
                             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
@@ -557,6 +574,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
 // Build the Form
   // Build the Form
+   // make sure you have this import at the top
+
   Widget _buildLinkKycForm(List<String> idTypes, List<String> walletIds) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -605,13 +624,19 @@ class _ProfilePageState extends State<ProfilePage> {
           controller: _transactionPinController,
           decoration: const InputDecoration(
             labelText: 'Transaction Pin',
-            hintText: 'Enter your transaction pin',
+            hintText: 'Enter your 4-digit pin',
           ),
           obscureText: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(4), // limit to 4 characters
+            FilteringTextInputFormatter.digitsOnly, // only allow numbers
+          ],
         ),
       ],
     );
   }
+
 
   // Show Change Password Dialog
   void _showChangePasswordDialog() {

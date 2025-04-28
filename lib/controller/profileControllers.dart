@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:gobeller/utils/api_service.dart';
+import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController {
@@ -316,7 +318,58 @@ class ProfileController {
   }
 
   // Link KYC Verification
-  static Future<String> linkKycVerification({
+  // static Future<String> linkKycVerification({
+  //   required String idType,
+  //   required String idValue,
+  //   required String walletIdentifier,
+  //   required String transactionPin,
+  //   }) async {
+  //   try {
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? token = prefs.getString('auth_token');
+  //     final String appId = prefs.getString('appId') ?? '';
+  //
+  //     if (token == null) {
+  //       debugPrint("❌ No authentication token found. Please login again.");
+  //       return "Authentication required. Please log in again.";
+  //     }
+  //
+  //     debugPrint("🔑 Token for link KYC: $token");
+  //
+  //     final extraHeaders = {
+  //       'Authorization': 'Bearer $token',
+  //       'Accept': 'application/json',
+  //       'Content-Type': 'application/json',
+  //       'AppID': appId,
+  //     };
+  //
+  //     final Map<String, dynamic> body = {
+  //       "id_type": idType,
+  //       "id_value": idValue,
+  //       "customer_wallet_number_or_uuid": walletIdentifier,
+  //       "transaction_pin": transactionPin,
+  //     };
+  //
+  //     final response = await ApiService.postRequest(
+  //       "/customers/kyc-verifications/link/verified",
+  //       body,
+  //       extraHeaders: extraHeaders,
+  //     );
+  //
+  //     debugPrint("🔹 Link KYC API Response: $response");
+  //
+  //     if (response["status"] == true) {
+  //       return "KYC linked successfully.";
+  //     } else {
+  //       return response["message"] ?? "Failed to link KYC.";
+  //     }
+  //   } catch (e) {
+  //     debugPrint("❌ Link KYC API Error: $e");
+  //     return "An error occurred while linking KYC.";
+  //   }
+  // }
+
+  static Future<Map<String, dynamic>> linkKycVerification({
     required String idType,
     required String idValue,
     required String walletIdentifier,
@@ -325,16 +378,30 @@ class ProfileController {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String? appId = prefs.getString('appId');
 
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return "Authentication required. Please log in again.";
+      if (token == null || token.isEmpty) {
+        return {
+          'success': false,
+          'message': '🔒 Authentication required. Please log in again.'
+        };
+      }
+
+      if (appId == null || appId.isEmpty) {
+        return {
+          'success': false,
+          'message': '⚙️ App configuration missing. Please restart the app.'
+        };
       }
 
       debugPrint("🔑 Token for link KYC: $token");
+      debugPrint("🆔 AppID for link KYC: $appId");
 
-      final extraHeaders = {
+      final headers = {
         'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'AppID': appId,
       };
 
       final Map<String, dynamic> body = {
@@ -344,24 +411,73 @@ class ProfileController {
         "transaction_pin": transactionPin,
       };
 
+      debugPrint("📤 Submitting KYC Link Payload:");
+      body.forEach((key, value) => debugPrint("   $key: $value"));
+
       final response = await ApiService.postRequest(
         "/customers/kyc-verifications/link/verified",
         body,
-        extraHeaders: extraHeaders,
-      );
+        extraHeaders: headers,
+      ).timeout(const Duration(seconds: 10));
 
       debugPrint("🔹 Link KYC API Response: $response");
 
-      if (response["status"] == true) {
-        return "KYC linked successfully.";
+      final bool status = response['status'] == true;
+      final String message = (response['message'] ?? '').toString().trim();
+
+      if (status) {
+        return {
+          'success': true,
+          'message': "✅ KYC linked successfully."
+        };
       } else {
-        return response["message"] ?? "Failed to link KYC.";
+        String friendlyMessage = '⚠️ Failed to link KYC.';
+
+        if (message.isNotEmpty) {
+          friendlyMessage = message;
+        } else if (response.containsKey('errors')) {
+          final errors = response['errors'] as Map<String, dynamic>;
+          final errorMessages = errors.entries
+              .map((entry) => entry.value is List
+              ? (entry.value as List).join(', ')
+              : entry.value.toString())
+              .join('\n');
+
+          friendlyMessage = errorMessages.isNotEmpty
+              ? "⚠️ $errorMessages"
+              : '⚠️ Failed to link KYC.';
+        }
+
+        return {'success': false, 'message': friendlyMessage};
       }
+
+    } on SocketException {
+      return {
+        'success': false,
+        'message': '📶 No internet connection. Please check your network and try again.'
+      };
+    } on ClientException {
+      return {
+        'success': false,
+        'message': '🌐 Unable to connect to the server. Please try again later.'
+      };
     } catch (e) {
+      final error = e.toString().toLowerCase();
+      if (error.contains("socketexception") || error.contains("failed host lookup")) {
+        return {
+          'success': false,
+          'message': '📡 Network error. Please check your internet connection.'
+        };
+      }
+
       debugPrint("❌ Link KYC API Error: $e");
-      return "An error occurred while linking KYC.";
+      return {
+        'success': false,
+        'message': '❌ Something went wrong. Please try again shortly.'
+      };
     }
   }
+
 
   // Fetch Wallets
   static Future<Map<String, dynamic>> fetchWallets() async {

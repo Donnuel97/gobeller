@@ -141,6 +141,70 @@ class ElectricityController with ChangeNotifier {
   }
 
   /// Purchase Electricity
+  // Future<Map<String, dynamic>> purchaseElectricity({
+  //   required String meterNumber,
+  //   required String electricityDisco,
+  //   required String meterType,
+  //   required String amount,
+  //   required String phoneNumber,
+  //   required String pin,
+  //   }) async {
+  //   _isPurchasing = true;
+  //   notifyListeners();
+  //
+  //   try {
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? token = prefs.getString('auth_token');
+  //     final String appId = prefs.getString('appId') ?? '';
+  //
+  //     if (token == null) {
+  //       return {'success': false, 'message': '🔒 You’ve been logged out. Please log in again.'};
+  //     }
+  //
+  //     final String endpoint = "/transactions/buy-electricity";
+  //     final Map<String, String> headers = {
+  //       "Authorization": "Bearer $token",
+  //       "Content-Type": "application/json",
+  //       "AppID": appId,
+  //     };
+  //
+  //     final Map<String, dynamic> body = {
+  //       "meter_number": meterNumber,
+  //       "electricity_disco": electricityDisco,
+  //       "meter_type": meterType,
+  //       "final_amount": double.tryParse(amount) ?? 0,
+  //       "phone_number": phoneNumber,
+  //       "transaction_pin": pin,
+  //     };
+  //
+  //     final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+  //     final status = response["status"];
+  //     final message = (response["message"] ?? "").toString().trim();
+  //
+  //     if (status == true) {
+  //       return {'success': true, 'message': '⚡️ Electricity purchased successfully!'};
+  //     } else {
+  //       String friendlyMessage = "❌ Something went wrong.";
+  //       if (message.toLowerCase().contains("invalid pin")) {
+  //         friendlyMessage = "🔐 Your transaction PIN is incorrect.";
+  //       } else if (message.toLowerCase().contains("insufficient")) {
+  //         friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
+  //       } else if (message.toLowerCase().contains("unauthenticated")) {
+  //         friendlyMessage = "🔒 Session expired. Please log in again.";
+  //       } else if (message.isNotEmpty) {
+  //         friendlyMessage = message;
+  //       }
+  //
+  //       return {'success': false, 'message': friendlyMessage};
+  //     }
+  //   } catch (e) {
+  //     return {'success': false, 'message': '🌐 Network error occurred. Please try again.'};
+  //   } finally {
+  //     _isPurchasing = false;
+  //     notifyListeners();
+  //   }
+  // }
+
   Future<Map<String, dynamic>> purchaseElectricity({
     required String meterNumber,
     required String electricityDisco,
@@ -184,17 +248,8 @@ class ElectricityController with ChangeNotifier {
       if (status == true) {
         return {'success': true, 'message': '⚡️ Electricity purchased successfully!'};
       } else {
-        String friendlyMessage = "❌ Something went wrong.";
-        if (message.toLowerCase().contains("invalid pin")) {
-          friendlyMessage = "🔐 Your transaction PIN is incorrect.";
-        } else if (message.toLowerCase().contains("insufficient")) {
-          friendlyMessage = "💸 Your wallet doesn’t have enough funds.";
-        } else if (message.toLowerCase().contains("unauthenticated")) {
-          friendlyMessage = "🔒 Session expired. Please log in again.";
-        } else if (message.isNotEmpty) {
-          friendlyMessage = message;
-        }
-
+        // Directly use backend message if available
+        String friendlyMessage = message.isNotEmpty ? message : "❌ Something went wrong.";
         return {'success': false, 'message': friendlyMessage};
       }
     } catch (e) {
@@ -204,5 +259,6 @@ class ElectricityController with ChangeNotifier {
       notifyListeners();
     }
   }
+
 
 }

@@ -14,7 +14,7 @@ class LoginController with ChangeNotifier {
   Future<Map<String, dynamic>> loginUser({
     required String username,
     required String password,
-  }) async {
+    }) async {
     _setLoading(true);
 
     try {

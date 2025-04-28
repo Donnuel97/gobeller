@@ -31,6 +31,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telephoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _transactionPinController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
 
@@ -43,6 +44,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   Color? _primaryColor;
   Color? _secondaryColor;
+  Color? _tertiaryColor;
   String? _logoUrl;  // Variable to store the logo URL
 
 
@@ -57,15 +59,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
       final primaryColorHex = data['customized-app-primary-color'];
       final secondaryColorHex = data['customized-app-secondary-color'];
+      final tertiaryColorHex = data['customized-app-tertiary-color'] ?? '#ffffff';
       final logoUrl = data['customized-app-logo-url'];  // Fetch logo URL
 
       setState(() {
         _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
         _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+        _tertiaryColor = Color(int.parse(tertiaryColorHex.replaceAll('#', '0xFF')));
+
         _logoUrl = logoUrl;  // Save the logo URL
       });
     }
   }
+
   VideoPlayerController? _videoController;
 
   @override
@@ -96,6 +102,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _usernameController.text = data['username'] ?? '';
     _emailController.text = data['email'] ?? '';
     _telephoneController.text = data['phone_number1'] ?? data['telephone'] ?? '';
+    _addressController.text = data['physical_address'] ?? '';
     _dobController.text = data['date_of_birth'] ?? '';
   }
 
@@ -108,6 +115,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _usernameController.clear();
     _emailController.clear();
     _telephoneController.clear();
+    _addressController.clear();
     _passwordController.clear();
     _confirmPasswordController.clear();
     _transactionPinController.clear();
@@ -146,10 +154,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
               ),
             )
           else
-            Container(color: Colors.black),
+            // Container(color: Colors.black),
+            Container(color: _tertiaryColor),
 
           Container(
-            color: const Color(0xCC051330),
+            // color: const Color(0xCC051330),
+            // color: _tertiaryColor,
           ),
 
 
@@ -190,7 +200,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             return const Center(
                               child: Text(
                                 'Getting Data...',
-                                style: TextStyle(color: Colors.white, fontSize: 16),
+                                style: TextStyle(color: Colors.black, fontSize: 16),
                               ),
                             ); // Show "Getting Data..." if image fails to load
                           },
@@ -201,7 +211,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         children: [
                           Text(
                             "Create Your Account",
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
@@ -209,7 +219,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             onPressed: () => Navigator.pushNamed(context, '/login'),
                             child: const Text(
                               "Already have an account? Login",
-                              style: TextStyle(color: Colors.white70),
+                              style: TextStyle(color: Colors.black),
                             ),
                           ),
                         ],
@@ -220,19 +230,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         value: _selectedIdType,
                         decoration: InputDecoration(
                           labelText: "Select ID Type",
-                          labelStyle: const TextStyle(color: Colors.white),
+                          labelStyle: const TextStyle(color: Colors.black),
                           enabledBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: BorderSide(color: Colors.black),
                           ),
                           focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: BorderSide(color: Colors.black),
                           ),
                           border: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderSide: BorderSide(color: Colors.black),
                           ),
                         ),
-                        dropdownColor: Colors.black87,
-                        style: const TextStyle(color: Colors.white),
+                        dropdownColor: Colors.white,
+                        style: const TextStyle(color: Colors.black),
                         items: const [
                           {"label": "Register with NIN", "value": "nin"},
                           {"label": "Register with BVN", "value": "bvn"},
@@ -240,7 +250,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ].map((item) {
                           return DropdownMenuItem<String>(
                             value: item["value"]!,
-                            child: Text(item["label"]!, style: const TextStyle(color: Colors.white)),
+                            child: Text(item["label"]!, style: const TextStyle(color: Colors.black)),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -260,7 +270,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                           controller: _idNumberController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: "Enter ID Number"),
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.black),
                           validator: (value) =>
                           value == null || value.isEmpty ? "ID number is required" : null,
                         ),
@@ -273,7 +283,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             }
                           },
                           child: ninController.isVerifying
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(color: Colors.black)
                               : const Text('Verify'),
                         ),
                         const SizedBox(height: 10),
@@ -306,9 +316,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
     final data = ninController.ninData;
     String gender = (data?['gender'] ?? 'unspecified').toString().toLowerCase();
 
-    const labelStyle = TextStyle(color: Colors.white);
+    const labelStyle = TextStyle(color: Colors.black);
     const inputBorder = UnderlineInputBorder(
-      borderSide: BorderSide(color: Colors.white),
+      borderSide: BorderSide(color: Colors.black),
     );
 
     InputDecoration inputDecoration(String label, {Widget? suffixIcon}) {
@@ -327,53 +337,59 @@ class _RegistrationPageState extends State<RegistrationPage> {
       children: [
         TextFormField(
           controller: _firstNameController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("First Name"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _middleNameController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("Middle Name (Optional)"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _lastNameController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color:Colors.black),
           decoration: inputDecoration("Last Name"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _usernameController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("Username"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _emailController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("Email"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _telephoneController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("Telephone"),
+        ),
+        const SizedBox(height: 10),
+        TextFormField(
+          controller: _addressController,
+          style: const TextStyle(color: Colors.black),
+          decoration: inputDecoration("Address"),
         ),
         const SizedBox(height: 10),
 
         TextFormField(
           controller: _dobController,
           readOnly: true,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration(
             "Date of Birth",
-            suffixIcon: const Icon(Icons.calendar_today, color: Colors.white),
+            suffixIcon: const Icon(Icons.calendar_today, color: Colors.black),
           ),
           onTap: () async {
             DateTime initialDate;
@@ -395,7 +411,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       primary: Colors.orange,
                       onPrimary: Colors.black,
                       surface: Colors.grey,
-                      onSurface: Colors.white,
+                      onSurface: Colors.black,
                     ),
                     dialogBackgroundColor: Colors.black,
                   ),
@@ -414,13 +430,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
         TextFormField(
           controller: _passwordController,
           obscureText: _isPasswordObscured,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration(
             "Password",
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordObscured ? Icons.visibility_off : Icons.visibility,
-                color: Colors.white,
+                color: Colors.black,
               ),
               onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
             ),
@@ -432,13 +448,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
         TextFormField(
           controller: _confirmPasswordController,
           obscureText: _isConfirmPasswordObscured,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration(
             "Confirm Password",
             suffixIcon: IconButton(
               icon: Icon(
                 _isConfirmPasswordObscured ? Icons.visibility_off : Icons.visibility,
-                color: Colors.white,
+                color: Colors.black,
               ),
               onPressed: () => setState(() => _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
             ),
@@ -451,7 +467,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           controller: _transactionPinController,
           keyboardType: TextInputType.number,
           maxLength: 4,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
           decoration: inputDecoration("Transaction Pin"),
           validator: (value) {
             if (value == null || value.length != 4) return "Enter a 4-digit PIN";
@@ -471,7 +487,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 });
               },
               checkColor: Colors.black,
-              activeColor: Colors.white,
+              activeColor: Colors.black,
             ),
             Expanded(
               child: GestureDetector(
@@ -484,7 +500,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   'I accept the terms and privacy policy',
                   style: TextStyle(
                     decoration: TextDecoration.underline,
-                    color: Colors.white,
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -515,6 +531,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   email: _emailController.text.trim(),
                   username: _usernameController.text.trim(),
                   telephone: _telephoneController.text.trim(),
+                  address: _addressController.text.trim(),
                   gender: gender,
                   password: _passwordController.text.trim(),
                   transactionPin: int.parse(_transactionPinController.text.trim()),
@@ -537,7 +554,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             }
                 : null,
             child: ninController.isSubmitting
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? const CircularProgressIndicator(color: Colors.black)
                 : Text(
               'Register',
               style: TextStyle(color: _primaryColor, fontSize: 16, fontWeight: FontWeight.bold),

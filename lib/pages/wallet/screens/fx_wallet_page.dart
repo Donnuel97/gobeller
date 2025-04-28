@@ -30,36 +30,38 @@ class _FXWalletPageState extends State<FXWalletPage> {
   String selectedAccountType = 'virtual-account';
 
   bool isCreatingWallet = false;
+  bool isWalletsLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadWallets();
-    _loadCurrencies();
-    _loadWalletTypes();
-    _loadBanks();
+    _initializePage();
   }
 
-  Future<void> _loadBanks() async {
+  Future<void> _initializePage() async {
+    setState(() => isLoading = true);
     try {
-      if (!mounted) return;
-      setState(() => isBanksLoading = true);
-
-      final response = await CurrencyController.fetchBanks();
-      if (!mounted) return;
-
-      setState(() {
-        banks = response ?? [];
-        isBanksLoading = false;
-      });
+      await Future.wait([
+        _loadWallets(),
+        _loadCurrencies(),
+        _loadWalletTypes(),
+        _loadBanks(),
+      ]);
+      hasError = false;
     } catch (e) {
-      if (!mounted) return;
-      setState(() => isBanksLoading = false);
+      hasError = true;
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   Future<void> _loadWallets() async {
     try {
+      if (!mounted) return;
+      setState(() => isWalletsLoading = true);
+
       final walletData = await WalletController.fetchWallets();
       if (!mounted) return;
 
@@ -95,18 +97,14 @@ class _FXWalletPageState extends State<FXWalletPage> {
       setState(() => hasError = true);
 
       if (e.toString().contains('401')) {
-        // If 401 Unauthorized error occurs, reload the wallets
         debugPrint("❌ 401 Unauthorized error detected. Reloading wallets...");
         await _loadWallets();  // Retry fetching wallets
       }
     } finally {
       if (!mounted) return;
-      setState(() => isLoading = false);
+      setState(() => isWalletsLoading = false);
     }
   }
-
-
-
 
   Future<void> _loadCurrencies() async {
     try {
@@ -144,7 +142,32 @@ class _FXWalletPageState extends State<FXWalletPage> {
     }
   }
 
+  Future<void> _loadBanks() async {
+    try {
+      if (!mounted) return;
+      setState(() => isBanksLoading = true);
+
+      final response = await CurrencyController.fetchBanks();
+      if (!mounted) return;
+
+      setState(() {
+        banks = response ?? [];
+        isBanksLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isBanksLoading = false);
+    }
+  }
+
   void _createNewWallet(BuildContext context) {
+    if (isCurrencyLoading || isWalletTypeLoading || isBanksLoading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please wait, loading options...")),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: !isCreatingWallet,
@@ -166,17 +189,20 @@ class _FXWalletPageState extends State<FXWalletPage> {
                               child: Text("Virtual Account"),
                             ),
                           ],
-                          onChanged: null, // disables selection
+                          onChanged: null,
                           value: "virtual-account",
                         ),
-
                         const SizedBox(height: 20),
+
                         isCurrencyLoading
                             ? const CircularProgressIndicator()
                             : DropdownButtonFormField<String>(
                           decoration: const InputDecoration(labelText: "Currency"),
                           items: currencies.map<DropdownMenuItem<String>>((currency) {
-                            return DropdownMenuItem<String>(value: currency["id"], child: Text(currency["name"]));
+                            return DropdownMenuItem<String>(
+                              value: currency["id"],
+                              child: Text(currency["name"]),
+                            );
                           }).toList(),
                           onChanged: (value) {
                             setStateDialog(() {
@@ -186,13 +212,17 @@ class _FXWalletPageState extends State<FXWalletPage> {
                           value: selectedCurrencyId.isNotEmpty ? selectedCurrencyId : null,
                         ),
                         const SizedBox(height: 20),
+
                         isWalletTypeLoading
                             ? const CircularProgressIndicator()
                             : DropdownButtonFormField<String>(
                           isExpanded: true,
                           decoration: const InputDecoration(labelText: "Wallet Type"),
                           items: walletTypes.map<DropdownMenuItem<String>>((walletType) {
-                            return DropdownMenuItem<String>(value: walletType["id"], child: Text(walletType["name"]));
+                            return DropdownMenuItem<String>(
+                              value: walletType["id"],
+                              child: Text(walletType["name"]),
+                            );
                           }).toList(),
                           onChanged: (value) {
                             setStateDialog(() {
@@ -202,13 +232,17 @@ class _FXWalletPageState extends State<FXWalletPage> {
                           value: selectedWalletTypeId.isNotEmpty ? selectedWalletTypeId : null,
                         ),
                         const SizedBox(height: 20),
+
                         if (selectedAccountType == 'virtual-account')
                           isBanksLoading
                               ? const CircularProgressIndicator()
                               : DropdownButtonFormField<String>(
                             decoration: const InputDecoration(labelText: "Bank"),
                             items: banks.map<DropdownMenuItem<String>>((bank) {
-                              return DropdownMenuItem<String>(value: bank["id"], child: Text(bank["name"]));
+                              return DropdownMenuItem<String>(
+                                value: bank["id"],
+                                child: Text(bank["name"]),
+                              );
                             }).toList(),
                             onChanged: (value) {
                               setStateDialog(() {
@@ -229,17 +263,8 @@ class _FXWalletPageState extends State<FXWalletPage> {
                       onPressed: isCreatingWallet
                           ? null
                           : () async {
-                        // Validate form
-                        if (selectedCurrencyId.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a currency.")));
-                          return;
-                        }
-                        if (selectedWalletTypeId.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a wallet type.")));
-                          return;
-                        }
-                        if (selectedAccountType == 'virtual-account' && selectedBankId.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a bank.")));
+                        if (selectedCurrencyId.isEmpty || selectedWalletTypeId.isEmpty || (selectedAccountType == 'virtual-account' && selectedBankId.isEmpty)) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all required fields.")));
                           return;
                         }
 
@@ -250,30 +275,30 @@ class _FXWalletPageState extends State<FXWalletPage> {
                           "currency_id": selectedCurrencyId,
                         };
 
-                        debugPrint("📤 Creating Wallet with: $requestBody");
                         setStateDialog(() => isCreatingWallet = true);
 
                         try {
                           final result = await CurrencyController.createWallet(requestBody);
-                          debugPrint("✅ Wallet Created: $result");
 
-                          if (result["status"] == "error" || result["status"] == false) {
-                            final errorMsg = result["message"] ?? "Something went wrong.";
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
-                          } else {
+                          if (result["status"] == "success" || result["status"] == true) {
                             await _loadWallets();
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wallet created successfully.")));
+
                             setState(() {
                               selectedCurrencyId = '';
                               selectedWalletTypeId = '';
                               selectedBankId = '';
                               selectedAccountType = 'internal-account';
                             });
+
                             Navigator.of(context).pop();
+                          } else {
+                            final errorMsg = result["message"] ?? "Something went wrong.";
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
                           }
                         } catch (e) {
-                          final err = e.toString().replaceFirst("Exception: ", "");
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                          final errorMsg = e.toString().replaceFirst("Exception: ", "");
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
                         } finally {
                           setStateDialog(() => isCreatingWallet = false);
                         }
@@ -330,7 +355,12 @@ class _FXWalletPageState extends State<FXWalletPage> {
       )
           : Column(
         children: [
-          Expanded(child: WalletList(wallets: wallets)),
+          Expanded(
+            child: WalletList(
+              wallets: wallets,
+              isLoading: isWalletsLoading,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
@@ -342,7 +372,10 @@ class _FXWalletPageState extends State<FXWalletPage> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text("Create New FX Wallet", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "Create New FX Wallet",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),

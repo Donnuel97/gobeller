@@ -52,15 +52,19 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent, // keep this, but fix inside
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom, // Key line to adjust padding when keyboard is visible
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white, // 🧱 Add a white background
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)), // 🧈 Rounded top corners
+            ),
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -73,38 +77,32 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
 
                   const SizedBox(height: 16),
 
-                  // PIN Input Field
                   TextFormField(
                     controller: _pinController,
                     keyboardType: TextInputType.number,
-                    obscureText: _isPinHidden, // Toggle PIN visibility
+                    obscureText: _isPinHidden,
                     decoration: InputDecoration(
                       labelText: "Transaction PIN",
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPinHidden ? Icons.visibility_off : Icons.visibility, // Toggle icon for visibility
-                        ),
-                        onPressed: () => setState(() {
-                          _isPinHidden = !_isPinHidden; // Toggle visibility on press
-                        }),
+                        icon: Icon(_isPinHidden ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _isPinHidden = !_isPinHidden),
                       ),
                     ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly, // Only digits allowed
-                      LengthLimitingTextInputFormatter(4), // Max 4 digits
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(4),
                     ],
                     validator: (value) => value!.length != 4 ? "Enter a valid 4-digit PIN" : null,
                   ),
 
                   const SizedBox(height: 20),
 
-                  // Action Buttons (Cancel and Proceed)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context), // Close the modal
+                        onPressed: () => Navigator.pop(context),
                         child: const Text("Cancel"),
                       ),
                       Consumer<WalletToBankTransferController>(
@@ -131,6 +129,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       },
     );
   }
+
 
 
 
