@@ -23,7 +23,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("")
+    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
       ..initialize().then((_) {
         setState(() {});
         _videoController!.setLooping(true);
@@ -101,7 +101,7 @@ class _WelcomePageState extends State<WelcomePage> {
               // Dark overlay with tertiary color and fade animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 500),
-                color: tertiaryColor.withOpacity(1),
+                color: tertiaryColor.withOpacity(0.8),
               ),
 
               // Content
@@ -155,7 +155,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       return const Center(
                         child: Text(
                           'Getting Data...',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          style: TextStyle(color: Colors.black, fontSize: 16),
                         ),
                       );
                     },
@@ -164,7 +164,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 Text(
                   welcomeTitle,
                   style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    color: Colors.white,
+                    color: Colors.black,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -172,7 +172,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 Text(
                   welcomeDescription,
                   style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: Colors.white70,
+                    color: Colors.black,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -189,7 +189,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black,
 
-                    side: const BorderSide(color: Colors.white70),
+                    side: const BorderSide(color: Colors.black),
                   ),
                   child: const Text("Login"),
                   onPressed: () => Navigator.pushNamed(context, Routes.login),

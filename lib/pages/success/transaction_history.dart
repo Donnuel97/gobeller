@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http; // Import for HTTP requests
 import 'widget/transaction_tile.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class TransactionHistoryPage extends StatefulWidget {
   const TransactionHistoryPage({super.key});
@@ -179,14 +180,14 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () => _downloadTransactionAsPDF(transaction),
-                            child: const Text("Download as PDF"),
+                            child: const Text("Download"),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () => _shareTransactionAsPDF(transaction),
-                            child: const Text("Share Receipt"),
+                            child: const Text("Share"),
                           ),
                         ),
                       ],
@@ -218,11 +219,13 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       ),
     );
   }
+
+  // PDF share
   Future<void> _shareTransactionAsPDF(Map<String, dynamic> transaction) async {
     final pdf = pw.Document();
 
     final prefs = await SharedPreferences.getInstance();
-    final logoUrl = prefs.getString('customized-app-logo-url');
+    final logoUrl = prefs.getString('customized-app-logo-url'); // Load logo URL from SharedPreferences
     final customerSupportData = prefs.getString('customerSupportData');
 
     final customerSupport = customerSupportData != null
@@ -232,7 +235,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     Uint8List? logoImageBytes;
     if (logoUrl != null) {
       try {
-        final response = await http.get(Uri.parse(logoUrl));
+        final response = await http.get(Uri.parse(logoUrl)); // Get the logo image from the URL
         if (response.statusCode == 200) {
           logoImageBytes = response.bodyBytes;
         }
@@ -247,41 +250,64 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.SizedBox(width: 100),
-                  logoImageBytes != null
-                      ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
-                      : pw.SizedBox(width: 100),
-                ],
+              // Logo at top center
+              pw.Center(
+                child: logoImageBytes != null
+                    ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
+                    : pw.SizedBox(width: 100, height: 100),
               ),
               pw.SizedBox(height: 20),
+
+              // Title: Transaction Receipt
               pw.Center(
                 child: pw.Text(
                   'Transaction Receipt',
                   style: pw.TextStyle(
                     fontSize: 26,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue,
+                    color: PdfColors.black,
                   ),
                 ),
               ),
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 30),
+
+              // Status Label
+              pw.Center(
+                child: pw.Text(
+                  transaction["status"]["label"],
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    color: _getPdfStatusColor(transaction["status"]["label"]),
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 30),
+
+              // Table for transaction details
               pw.Table(
-                border: pw.TableBorder.all(width: 1, color: PdfColors.grey),
                 children: [
-                  _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
-                  _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
-                  _buildTableRow("Description", transaction["description"] ?? "No Description"),
-                  _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
+                  _buildPdfTableRow("Amount", "${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+                  _buildPdfTableRow("Transaction Type", transaction["transaction_type"] ?? "Unknown"),
+                  _buildPdfTableRow("Date", transaction["created_at"] ?? "Unknown"),
+                  _buildPdfTableRow("Description", transaction["description"] ?? "No Description"),
+                  _buildPdfTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
+                  if (transaction["instrument_code"] != null)
+                    _buildPdfTableRow("Session ID", transaction["instrument_code"]),
                 ],
               ),
+
               pw.SizedBox(height: 20),
+
+              // Customer Support Details
               if (customerSupport != null) ...[
                 pw.Divider(),
                 pw.SizedBox(height: 10),
-                pw.Text('Customer Support:', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.Text(
+                  'Customer Support:',
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 5),
                 pw.Text('Email: ${customerSupport['official_email']}'),
                 pw.Text('Phone: ${customerSupport['official_telephone']}'),
                 pw.Text('Website: ${customerSupport['public_existing_website']}'),
@@ -289,6 +315,8 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   pw.Text('Country: ${customerSupport['address']['country']}'),
               ],
               pw.SizedBox(height: 20),
+
+              // Footer (Generated Date)
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
@@ -310,34 +338,60 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
+// Helper to build a clean table row
+  pw.TableRow _buildPdfTableRow(String title, String value) {
+    return pw.TableRow(
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8.0),
+          child: pw.Text(
+            title,
+            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8.0),
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+// Helper to determine PDF status label color
+  PdfColor _getPdfStatusColor(String statusLabel) {
+    if (statusLabel == "Pending") {
+      return PdfColors.orange; // Pending
+    } else if (statusLabel == "Successful") {
+      return PdfColors.green; // Successful
+    } else {
+      return PdfColors.red; // Any other status
+    }
+  }
+
+
+
 
   // Function to generate PDF and download it
   Future<void> _downloadTransactionAsPDF(Map<String, dynamic> transaction) async {
     final pdf = pw.Document();
 
-    // Fetch the logo URL and customer support details from SharedPreferences
+    // Fetch customer support details from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    final logoUrl = prefs.getString('customized-app-logo-url');
     final customerSupportData = prefs.getString('customerSupportData');
-
-    // Decode the customer support data properly
     final customerSupport = customerSupportData != null
         ? jsonDecode(customerSupportData)['data']
         : null;
 
-    // Fetch logo image as bytes
+    // Load the logo from the assets folder
     Uint8List? logoImageBytes;
-    if (logoUrl != null) {
-      try {
-        final response = await http.get(Uri.parse(logoUrl));
-        if (response.statusCode == 200) {
-          logoImageBytes = response.bodyBytes;
-        } else {
-          print("Failed to load logo image, status code: ${response.statusCode}");
-        }
-      } catch (e) {
-        print("Error loading logo image: $e");
-      }
+    try {
+      logoImageBytes = await rootBundle.load('assets/logo.png').then((value) => value.buffer.asUint8List());
+      print("Logo image loaded from assets successfully");
+    } catch (e) {
+      print("Error loading logo image from assets: $e");
     }
 
     // Add a page with the transaction details
@@ -347,46 +401,49 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Header Section: Logo in top right, Title centered
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.SizedBox(width: 100), // Empty space for alignment
-                  logoImageBytes != null
-                      ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
-                      : pw.SizedBox(width: 100),
-                ],
+              // Header Section: Logo centralized in the page
+              pw.Center(
+                child: logoImageBytes != null
+                    ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
+                    : pw.SizedBox(width: 100),
               ),
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 20), // Space after logo
 
-              // Title with larger text, bold and blue color
+              // Title: Transaction Receipt
               pw.Center(
                 child: pw.Text(
                   'Transaction Receipt',
                   style: pw.TextStyle(
                     fontSize: 26,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue,
+                    color: PdfColors.black,
                   ),
                 ),
               ),
-              pw.SizedBox(height: 20),
-
-              // Transaction Details Table
+              pw.SizedBox(height: 30), // Space after the title
+              pw.Center(
+                child: pw.Text(
+                  transaction["status"]["label"],
+                  style: pw.TextStyle(
+                    fontSize: 26,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 30),
+              // Transaction Details Section (with no borders in the table)
               pw.Table(
-                border: pw.TableBorder.all(width: 1, color: PdfColors.grey),
                 children: [
-                  // _buildTableRow("Transaction Type", transaction["transaction_type"] ?? "Unknown"),
-                  _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+                  _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
                   _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
                   _buildTableRow("Description", transaction["description"] ?? "No Description"),
                   _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
                 ],
               ),
+              pw.SizedBox(height: 20), // Space after the transaction table
 
-              pw.SizedBox(height: 20),
-
-              // Customer Support Details Section (moved below transaction details)
+              // Customer Support Section (below transaction details)
               if (customerSupport != null) ...[
                 pw.Divider(),
                 pw.SizedBox(height: 10),
@@ -427,24 +484,39 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 
 
-
   pw.TableRow _buildTableRow(String title, String value) {
     return pw.TableRow(
       children: [
+        // Title aligned to the left with padding and wrapping enabled
         pw.Padding(
-          padding: const pw.EdgeInsets.all(8.0),
+          padding: const pw.EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
           child: pw.Text(
             title,
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.black,
+            ),
+            softWrap: true, // Allow text to wrap
+            maxLines: 2, // Limit the lines to 2 (you can adjust based on your needs)
           ),
         ),
+        // Value aligned to the right with padding and wrapping enabled
         pw.Padding(
-          padding: const pw.EdgeInsets.all(8.0),
-          child: pw.Text(value),
+          padding: const pw.EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+          child: pw.Text(
+            value,
+            textAlign: pw.TextAlign.right,  // Align the value to the right
+            style: pw.TextStyle(
+              color: PdfColors.black,
+            ),
+            softWrap: true,  // Allow text to wrap
+            maxLines: 2,  // Limit the lines to 2 (you can adjust based on your needs)
+          ),
         ),
       ],
     );
   }
+
 
 
 
