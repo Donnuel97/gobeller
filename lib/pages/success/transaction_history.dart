@@ -60,140 +60,155 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      isScrollControlled: true, // Enables smooth scrolling
+      isScrollControlled: true,
       builder: (context) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.5,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
           builder: (context, scrollController) {
+            final statusLabel = (transaction["status"]["label"]?.toString().toLowerCase() ?? "unknown");
+            Color statusColor;
+            if (statusLabel.contains("successful")) {
+              statusColor = Colors.green;
+            } else if (statusLabel.contains("fail")) {
+              statusColor = Colors.red;
+            } else {
+              statusColor = Colors.orange;
+            }
+
+            final timelineSteps = <Map<String, String>>[];
+            timelineSteps.add({"title": "Payment\nInitiated", "time": transaction["created_at"] ?? "N/A"});
+            if (statusLabel.contains("pending")) {
+              timelineSteps.add({"title": "Processing\nby Bank", "time": transaction["created_at"]});
+            } else if (statusLabel.contains("fail")) {
+              timelineSteps.add({"title": "Failed\nat Bank", "time": transaction["updated_at"] ?? transaction["created_at"]});
+            } else {
+              timelineSteps.add({"title": "Processing\nby Bank", "time": transaction["created_at"]});
+              timelineSteps.add({"title": "Received\nby Bank", "time": transaction["completed_at"] ?? transaction["created_at"]});
+            }
+
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: SingleChildScrollView(
                 controller: scrollController,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[400],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Text(
-                        "Transaction Details",
-                        style: Theme.of(context).textTheme.titleMedium!.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Centralized Amount with Transaction Type in Brackets
-                    Center(
-                      child: RichText(
-                        text: TextSpan(
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          children: [
-                            TextSpan(
-                              text:
-                              "${transaction["user_wallet"]["currency"]["symbol"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                fontSize: 24, // Larger font size for the amount
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const TextSpan(text: " "),
-                            TextSpan(
-                              text: "(${transaction["transaction_type"] ?? "Unknown"})",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
+                    Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Table for the details in a tabular form
-                    Table(
-                      columnWidths: {
-                        0: FixedColumnWidth(150), // Width for labels
-                        1: FlexColumnWidth(), // Width for values
-                      },
-                      children: [
-                        TableRow(
-                          children: [
-                            _buildTableCell("Transaction Type"),
-                            _buildTableCell(transaction["transaction_type"] ?? "Unknown"),
-                          ],
-                        ),
-                        TableRow(
-                          children: [
-                            _buildTableCell("Date"),
-                            _buildTableCell(transaction["created_at"] ?? "Unknown"),
-                          ],
-                        ),
-                        TableRow(
-                          children: [
-                            _buildTableCell("Description"),
-                            _buildTableCell(transaction["description"] ?? "No Description"),
-                          ],
-                        ),
-                        TableRow(
-                          children: [
-                            _buildTableCell("Transaction Reference"),
-                            _buildTableCell(transaction["reference_number"] ?? "N/A"),
-                          ],
-                        ),
-                        TableRow(
-                          children: [
-                            _buildTableCell("Session ID"),
-                            _buildTableCell(transaction["instrument_code"] ?? "N/A"),
-                          ],
-                        ),
-                      ],
+                    Text(
+                      "Transfer to ${transaction["receiver_name"] ?? "Recipient"}",
+                      style: Theme.of(context).textTheme.titleMedium!.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+
+                    Text(
+                      "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+
+                    Text(
+                      transaction["status"]["label"] ?? "Status Unknown",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // Row for Close and Download buttons positioned left and right
+                    // Timeline Row
                     Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Close Receipt"),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _downloadTransactionAsPDF(transaction),
-                            child: const Text("Download"),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _shareTransactionAsPDF(transaction),
-                            child: const Text("Share"),
-                          ),
-                        ),
-                      ],
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(
+                        timelineSteps.length * 2 - 1,
+                            (index) {
+                          if (index.isEven) {
+                            final step = timelineSteps[index ~/ 2];
+                            return Column(
+                              children: [
+                                Icon(Icons.circle, size: 12, color: statusColor),
+                                const SizedBox(height: 4),
+                                Text(step["title"]!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                                const SizedBox(height: 2),
+                                Text(step["time"]!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                              ],
+                            );
+                          } else {
+                            return Container(
+                              width: 20,
+                              height: 2,
+                              color: statusColor,
+                            );
+                          }
+                        },
+                      ),
                     ),
 
+                    const SizedBox(height: 20),
 
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _infoRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+                          _infoRow("Fee", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["org_charge_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+                          _infoRow("Recipient", "${transaction["description"] ?? "N/A"}"),
+                          _infoRow("Account Number", "${transaction["user_wallet"]["wallet_number"] ?? "N/A"}"),
+                          _infoRow("Transaction No.", "${transaction["reference_number"] ?? "N/A"}"),
+                          _infoRow("Session ID", transaction["instrument_code"] ?? transaction["reference_number"] ?? "N/A"),
+                          _infoRow("Payment Method", "${transaction["transaction_category"]["category"] ?? "N/A"}"),
+                          _infoRow("Date", transaction["created_at"] ?? "N/A"),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    Row(
+                      children: [
+                        // Expanded(
+                        //   child: ElevatedButton(
+                        //     onPressed: () => Navigator.pop(context),
+                        //     child: const Text("Close Receipt"),
+                        //   ),
+                        // ),
+                        // const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _downloadTransactionAsPDF(transaction),
+                            icon: const Icon(Icons.download),
+                            label: const Text("Download"),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _shareTransactionAsPDF(transaction),
+                            icon: const Icon(Icons.share),
+                            label: const Text("Share"),
+                          ),
+                        ),
+
+                      ],
+                    ),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -204,6 +219,50 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       },
     );
   }
+
+// Helper for info rows
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
 
 // Helper function to build Table cells
   Widget _buildTableCell(String value) {
@@ -225,23 +284,18 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     final pdf = pw.Document();
 
     final prefs = await SharedPreferences.getInstance();
-    final logoUrl = prefs.getString('customized-app-logo-url'); // Load logo URL from SharedPreferences
     final customerSupportData = prefs.getString('customerSupportData');
-
     final customerSupport = customerSupportData != null
         ? jsonDecode(customerSupportData)['data']
         : null;
 
     Uint8List? logoImageBytes;
-    if (logoUrl != null) {
-      try {
-        final response = await http.get(Uri.parse(logoUrl)); // Get the logo image from the URL
-        if (response.statusCode == 200) {
-          logoImageBytes = response.bodyBytes;
-        }
-      } catch (e) {
-        print("Error loading logo image: $e");
-      }
+    try {
+      logoImageBytes = await rootBundle
+          .load('assets/logo.png')
+          .then((value) => value.buffer.asUint8List());
+    } catch (e) {
+      print("Error loading logo image from assets: $e");
     }
 
     pdf.addPage(
@@ -375,101 +429,265 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
 
   // Function to generate PDF and download it
+  // Future<void> _downloadTransactionAsPDF(Map<String, dynamic> transaction) async {
+  //   final pdf = pw.Document();
+  //
+  //   // Fetch customer support details from SharedPreferences
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final customerSupportData = prefs.getString('customerSupportData');
+  //   final customerSupport = customerSupportData != null
+  //       ? jsonDecode(customerSupportData)['data']
+  //       : null;
+  //
+  //   // Load the logo from the assets folder
+  //   Uint8List? logoImageBytes;
+  //   try {
+  //     logoImageBytes = await rootBundle.load('assets/logo.png').then((value) => value.buffer.asUint8List());
+  //     print("Logo image loaded from assets successfully");
+  //   } catch (e) {
+  //     print("Error loading logo image from assets: $e");
+  //   }
+  //
+  //   // Add a page with the transaction details
+  //   pdf.addPage(
+  //     pw.Page(
+  //       build: (pw.Context context) {
+  //         return pw.Column(
+  //           crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //           children: [
+  //             // Header Section: Logo centralized in the page
+  //             pw.Center(
+  //               child: logoImageBytes != null
+  //                   ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
+  //                   : pw.SizedBox(width: 100),
+  //             ),
+  //             pw.SizedBox(height: 20), // Space after logo
+  //
+  //             // Title: Transaction Receipt
+  //             pw.Center(
+  //               child: pw.Text(
+  //                 'Transaction Receipt',
+  //                 style: pw.TextStyle(
+  //                   fontSize: 26,
+  //                   fontWeight: pw.FontWeight.bold,
+  //                   color: PdfColors.black,
+  //                 ),
+  //               ),
+  //             ),
+  //             pw.SizedBox(height: 30), // Space after the title
+  //             pw.Center(
+  //               child: pw.Text(
+  //                 transaction["status"]["label"],
+  //                 style: pw.TextStyle(
+  //                   fontSize: 26,
+  //                   fontWeight: pw.FontWeight.bold,
+  //                   color: PdfColors.black,
+  //                 ),
+  //               ),
+  //             ),
+  //             pw.SizedBox(height: 30),
+  //             // Transaction Details Section (with no borders in the table)
+  //             pw.Table(
+  //               children: [
+  //                 _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+  //                 _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
+  //                 _buildTableRow("Description", transaction["description"] ?? "No Description"),
+  //                 _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
+  //               ],
+  //             ),
+  //             pw.SizedBox(height: 20), // Space after the transaction table
+  //
+  //             // Customer Support Section (below transaction details)
+  //             if (customerSupport != null) ...[
+  //               pw.Divider(),
+  //               pw.SizedBox(height: 10),
+  //               pw.Text(
+  //                 'Customer Support:',
+  //                 style: pw.TextStyle(
+  //                   fontSize: 14,
+  //                   fontWeight: pw.FontWeight.bold,
+  //                   color: PdfColors.black,
+  //                 ),
+  //               ),
+  //               pw.Text('Email: ${customerSupport['official_email']}'),
+  //               pw.Text('Phone: ${customerSupport['official_telephone']}'),
+  //               pw.Text('Website: ${customerSupport['public_existing_website']}'),
+  //               if (customerSupport['address'] != null && customerSupport['address']['country'] != null)
+  //                 pw.Text('Country: ${customerSupport['address']['country']}'),
+  //               pw.SizedBox(height: 20),
+  //             ],
+  //
+  //             // Footer Section: Date and time the PDF was generated
+  //             pw.Align(
+  //               alignment: pw.Alignment.centerRight,
+  //               child: pw.Text(
+  //                 'Generated on ${DateFormat.yMMMd().format(DateTime.now())}',
+  //                 style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+  //               ),
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     ),
+  //   );
+  //
+  //   // Save the PDF and print it or show a preview
+  //   await Printing.layoutPdf(
+  //     onLayout: (PdfPageFormat format) async => pdf.save(),
+  //   );
+  // }
+
   Future<void> _downloadTransactionAsPDF(Map<String, dynamic> transaction) async {
     final pdf = pw.Document();
-
-    // Fetch customer support details from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final customerSupportData = prefs.getString('customerSupportData');
     final customerSupport = customerSupportData != null
         ? jsonDecode(customerSupportData)['data']
         : null;
 
-    // Load the logo from the assets folder
     Uint8List? logoImageBytes;
     try {
-      logoImageBytes = await rootBundle.load('assets/logo.png').then((value) => value.buffer.asUint8List());
-      print("Logo image loaded from assets successfully");
+      logoImageBytes = await rootBundle
+          .load('assets/logo.png')
+          .then((value) => value.buffer.asUint8List());
     } catch (e) {
       print("Error loading logo image from assets: $e");
     }
 
-    // Add a page with the transaction details
+    // Determine status and colors
+    final statusLabel = transaction["status"]["label"]?.toString().toLowerCase() ?? "unknown";
+    PdfColor statusColor;
+    if (statusLabel.contains("successful")) {
+      statusColor = PdfColors.green;
+    } else if (statusLabel.contains("fail")) {
+      statusColor = PdfColors.red;
+    } else {
+      statusColor = PdfColors.orange;
+    }
+
+    // Timeline steps based on status
+    final timelineSteps = <Map<String, String>>[];
+    timelineSteps.add({"title": "Payment\nInitiated", "time": transaction["created_at"] ?? "N/A"});
+
+    if (statusLabel.contains("pending")) {
+      timelineSteps.add({"title": "Processing\nby Bank", "time": transaction["created_at"]});
+    } else if (statusLabel.contains("fail")) {
+      timelineSteps.add({"title": "Failed\nat Bank", "time": transaction["updated_at"] ?? transaction["created_at"]});
+    } else {
+      timelineSteps.add({"title": "Processing\nby Bank", "time": transaction["created_at"]});
+      timelineSteps.add({"title": "Received\nby Bank", "time": transaction["completed_at"] ?? transaction["created_at"]});
+    }
+
     pdf.addPage(
       pw.Page(
         build: (pw.Context context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              // Header Section: Logo centralized in the page
-              pw.Center(
-                child: logoImageBytes != null
-                    ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
-                    : pw.SizedBox(width: 100),
-              ),
-              pw.SizedBox(height: 20), // Space after logo
-
-              // Title: Transaction Receipt
-              pw.Center(
-                child: pw.Text(
-                  'Transaction Receipt',
-                  style: pw.TextStyle(
-                    fontSize: 26,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
+              if (logoImageBytes != null)
+                pw.Center(
+                  child: pw.Image(
+                    pw.MemoryImage(logoImageBytes),
+                    width: 60,
+                    height: 60,
                   ),
                 ),
+              pw.SizedBox(height: 10),
+
+              pw.Text(
+                "Transfer to ${transaction["receiver_name"] ?? "Recipient"}",
+                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
               ),
-              pw.SizedBox(height: 30), // Space after the title
-              pw.Center(
-                child: pw.Text(
-                  transaction["status"]["label"],
-                  style: pw.TextStyle(
-                    fontSize: 26,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
-                  ),
+              pw.SizedBox(height: 10),
+
+              pw.Text(
+                "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}",
+                style: pw.TextStyle(fontSize: 30, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 10),
+
+              // Color-coded status label
+              pw.Text(
+                transaction["status"]["label"] ?? "Status Unknown",
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Timeline
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+                children: List.generate(
+                  timelineSteps.length * 2 - 1,
+                      (index) {
+                    if (index.isEven) {
+                      final step = timelineSteps[index ~/ 2];
+                      return _buildTimelineStep(step["title"]!, step["time"]!);
+                    } else {
+                      return _buildTimelineDivider();
+                    }
+                  },
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              _buildInfoRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+              _buildInfoRow("Fee", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["org_charge_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+              // _buildInfoRow(
+              //   "Fee",
+              //   transaction["org_charge_amount"] == "0" || transaction["org_charge_amount"] == null
+              //       ? pw.RichText(
+              //     text: pw.TextSpan(
+              //       text: "₦10.00 ",
+              //       style: pw.TextStyle(decoration: pw.TextDecoration.lineThrough, color: PdfColors.grey),
+              //       children: [
+              //         pw.TextSpan(text: " ₦0.00", style: pw.TextStyle(decoration: pw.TextDecoration.none, color: PdfColors.black))
+              //       ],
+              //     ),
+              //   )
+              //       : "₦${transaction["fee"]}",
+              // ),
+              // _buildInfoRow("Amount Paid", "₦${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
+
+              pw.SizedBox(height: 20),
+
+              pw.Container(
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow("Recipient", "${transaction["description"] ?? "N/A"}"),
+                    _buildInfoRow("Account Number", "${transaction["user_wallet"]["wallet_number"] ?? "N/A"}"),
+                    _buildInfoRow("Transaction No.", "${transaction["reference_number"] ?? "N/A"}"),
+                    _buildInfoRow("Session ID", transaction["instrument_code"] ?? transaction["reference_number"] ?? "N/A"),
+                    _buildInfoRow("Payment Method", "${transaction["transaction_category"]["category"] ?? "N/A"}"),
+                    _buildInfoRow("Date", transaction["created_at"] ?? "N/A"),
+                  ],
                 ),
               ),
               pw.SizedBox(height: 30),
-              // Transaction Details Section (with no borders in the table)
-              pw.Table(
-                children: [
-                  _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
-                  _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
-                  _buildTableRow("Description", transaction["description"] ?? "No Description"),
-                  _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
-                ],
-              ),
-              pw.SizedBox(height: 20), // Space after the transaction table
 
-              // Customer Support Section (below transaction details)
               if (customerSupport != null) ...[
                 pw.Divider(),
-                pw.SizedBox(height: 10),
-                pw.Text(
-                  'Customer Support:',
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
-                  ),
-                ),
+                pw.Text("Customer Support", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 pw.Text('Email: ${customerSupport['official_email']}'),
                 pw.Text('Phone: ${customerSupport['official_telephone']}'),
                 pw.Text('Website: ${customerSupport['public_existing_website']}'),
                 if (customerSupport['address'] != null && customerSupport['address']['country'] != null)
                   pw.Text('Country: ${customerSupport['address']['country']}'),
-                pw.SizedBox(height: 20),
               ],
+              pw.SizedBox(height: 20),
 
-              // Footer Section: Date and time the PDF was generated
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Text(
-                  'Generated on ${DateFormat.yMMMd().format(DateTime.now())}',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                ),
+              pw.Text(
+                'Generated on ${DateFormat.yMMMd().format(DateTime.now())}',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
               ),
             ],
           );
@@ -477,11 +695,51 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       ),
     );
 
-    // Save the PDF and print it or show a preview
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
     );
   }
+
+
+  pw.Widget _buildInfoRow(String title, dynamic value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(title, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          value is pw.Widget ? value : pw.Text(value.toString()),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildTimelineStep(String label, String? time) {
+    return pw.Column(
+      children: [
+        pw.Container(
+          width: 15,
+          height: 15,
+          decoration: pw.BoxDecoration(
+            color: PdfColors.green,
+            shape: pw.BoxShape.circle,
+          ),
+        ),
+        pw.SizedBox(height: 5),
+        pw.Text(label, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 8)),
+        if (time != null) pw.Text(DateFormat('MM-dd HH:mm').format(DateTime.parse(time)), style: pw.TextStyle(fontSize: 6, color: PdfColors.grey)),
+      ],
+    );
+  }
+
+  pw.Widget _buildTimelineDivider() {
+    return pw.Container(
+      width: 20,
+      height: 2,
+      color: PdfColors.green,
+    );
+  }
+
 
 
   pw.TableRow _buildTableRow(String title, String value) {
