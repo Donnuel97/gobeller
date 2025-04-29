@@ -10,7 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http; // Import for HTTP requests
 import 'widget/transaction_tile.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
 
 class TransactionHistoryPage extends StatefulWidget {
   const TransactionHistoryPage({super.key});
@@ -130,32 +130,39 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                     const SizedBox(height: 20),
 
                     // Timeline Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(
-                        timelineSteps.length * 2 - 1,
-                            (index) {
-                          if (index.isEven) {
-                            final step = timelineSteps[index ~/ 2];
-                            return Column(
-                              children: [
-                                Icon(Icons.circle, size: 12, color: statusColor),
-                                const SizedBox(height: 4),
-                                Text(step["title"]!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-                                const SizedBox(height: 2),
-                                Text(step["time"]!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                              ],
-                            );
-                          } else {
-                            return Container(
-                              width: 20,
-                              height: 2,
-                              color: statusColor,
-                            );
-                          }
-                        },
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: List.generate(
+                          timelineSteps.length * 2 - 1,
+                              (index) {
+                            if (index.isEven) {
+                              final step = timelineSteps[index ~/ 2];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.circle, size: 12, color: statusColor),
+                                    const SizedBox(height: 4),
+                                    Text(step["title"]!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                                    const SizedBox(height: 2),
+                                    Text(step["time"]!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              return Container(
+                                width: 20,
+                                height: 2,
+                                color: statusColor,
+                              );
+                            }
+                          },
+                        ),
                       ),
                     ),
+
 
                     const SizedBox(height: 20),
 
@@ -170,10 +177,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                         children: [
                           _infoRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
                           _infoRow("Fee", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["org_charge_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
-                          _infoRow("Recipient", "${transaction["description"] ?? "N/A"}"),
+                          _infoRow("Recipient", "${transaction["description"] ?? "N/A"}", wrap: true),
                           _infoRow("Account Number", "${transaction["user_wallet"]["wallet_number"] ?? "N/A"}"),
-                          _infoRow("Transaction No.", "${transaction["reference_number"] ?? "N/A"}"),
-                          _infoRow("Session ID", transaction["instrument_code"] ?? transaction["reference_number"] ?? "N/A"),
+                          _infoRow("Session ID", "${transaction["instrument_code"] ?? transaction["reference_number"] ?? "N/A"}", wrap: true, showCopy: true),
                           _infoRow("Payment Method", "${transaction["transaction_category"]["category"] ?? "N/A"}"),
                           _infoRow("Date", transaction["created_at"] ?? "N/A"),
                         ],
@@ -221,39 +227,47 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 
 // Helper for info rows
-  Widget _infoRow(String label, String value) {
+  Widget _infoRow(String title, String value, {bool wrap = false, bool showCopy = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-              ),
+          SizedBox(
+            width: 120,
+            child: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.black87,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    softWrap: wrap,
+                    overflow: wrap ? TextOverflow.visible : TextOverflow.ellipsis,
+                    maxLines: wrap ? null : 1,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-              ),
+                if (showCopy) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copied to clipboard')),
+                      );
+                    },
+                    child: const Icon(Icons.copy, size: 16, color: Colors.blue),
+                  ),
+                ]
+              ],
             ),
           ),
         ],

@@ -80,7 +80,6 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
-
   Future<void> fetchCardBalanceDetails(String cardId) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -99,7 +98,14 @@ class VirtualCardController with ChangeNotifier {
       };
 
       final endpoint = "/card-mgt/cards/virtual/$cardId/balance";
-      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+
+      Map<String, dynamic> response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+
+      // Retry once if response is 401
+      if (response['statusCode'] == 401) {
+        debugPrint("🔁 Retrying fetch due to 401 Unauthorized...");
+        response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      }
 
       debugPrint("💳 Card Balance Response for $cardId: $response");
 
@@ -118,7 +124,7 @@ class VirtualCardController with ChangeNotifier {
           "type": response["data"]["type"],
           "issuer": response["data"]["issuer"],
           "currency": response["data"]["currency"],
-          "balance": actualBalance.toStringAsFixed(2), // 👈 formatted balance
+          "balance": actualBalance.toStringAsFixed(2),
           "balance_updated_at": response["data"]["balance_updated_at"],
           "auto_approve": response["data"]["auto_approve"],
           "address": response["data"]["address"],
@@ -135,6 +141,62 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
+
+
+  // Future<void> fetchCardBalanceDetails(String cardId) async {
+  //   try {
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? token = prefs.getString('auth_token');
+  //     final String appId = prefs.getString('appId') ?? '';
+  //
+  //     if (token == null) {
+  //       debugPrint("❌ No auth token found.");
+  //       return;
+  //     }
+  //
+  //     final headers = {
+  //       "Accept": "application/json",
+  //       "Authorization": "Bearer $token",
+  //       "AppID": appId,
+  //     };
+  //
+  //     final endpoint = "/card-mgt/cards/virtual/$cardId/balance";
+  //     final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+  //
+  //     debugPrint("💳 Card Balance Response for $cardId: $response");
+  //
+  //     if (response["status"] == true && response["data"] != null) {
+  //       double rawBalance = double.tryParse(response["data"]["balance"].toString()) ?? 0.0;
+  //       double actualBalance = rawBalance / 100;
+  //
+  //       _cardDetails[cardId] = {
+  //         "id": response["data"]["id"],
+  //         "name": response["data"]["name"],
+  //         "card_number": response["data"]["card_number"],
+  //         "masked_pan": response["data"]["masked_pan"],
+  //         "expiry": response["data"]["expiry"],
+  //         "cvv": response["data"]["cvv"],
+  //         "status": response["data"]["status"],
+  //         "type": response["data"]["type"],
+  //         "issuer": response["data"]["issuer"],
+  //         "currency": response["data"]["currency"],
+  //         "balance": actualBalance.toStringAsFixed(2), // 👈 formatted balance
+  //         "balance_updated_at": response["data"]["balance_updated_at"],
+  //         "auto_approve": response["data"]["auto_approve"],
+  //         "address": response["data"]["address"],
+  //         "created_at": response["data"]["created_at"],
+  //         "updated_at": response["data"]["updated_at"],
+  //         "is_amount_locked": response["data"]["is_amount_locked"],
+  //       };
+  //     } else {
+  //       debugPrint("⚠️ Failed to fetch card details: ${response["message"]}");
+  //     }
+  //   } catch (e) {
+  //     debugPrint("❌ Error fetching card details: $e");
+  //   } finally {
+  //     notifyListeners();
+  //   }
+  // }
 
 
   Future<String> createVirtualCard({required String cardPin, required BuildContext context}) async {

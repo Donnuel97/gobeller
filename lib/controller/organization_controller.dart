@@ -21,7 +21,7 @@ class OrganizationController extends ChangeNotifier {
     notifyListeners();
 
     const String url = 'https://app.gobeller.com/api/v1/organizations/sddtif';
-    // sddtif, 101, Darpay
+    // sddtif, 101, Darpay, Lumi
     try {
       final response = await http.get(Uri.parse(url));
 

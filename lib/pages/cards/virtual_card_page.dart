@@ -5,6 +5,7 @@ import 'package:gobeller/pages/success/widget/bottom_nav_bar.dart';
 import 'package:gobeller/controller/cards_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../controller/kyc_controller.dart';
 import '../../utils/routes.dart';
 
 class VirtualCardPage extends StatefulWidget {
@@ -15,6 +16,9 @@ class VirtualCardPage extends StatefulWidget {
 }
 
 class _VirtualCardPageState extends State<VirtualCardPage> {
+  bool _shouldShowKycButton = false;
+  bool _kycLoading = true;
+
   Color? _primaryColor;
   Color? _secondaryColor;
   bool _isLoading = false; // Add this at the top of your StatefulWidget class
@@ -22,10 +26,37 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
   void initState() {
     super.initState();
     _loadPrimaryColor();
+    _checkKycStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<VirtualCardController>(context, listen: false).fetchVirtualCards();
     });
   }
+
+
+  void _checkKycStatus() async {
+    final kycVerifications = await KycVerificationController.fetchKycVerifications();
+
+    if (kycVerifications != null && kycVerifications.isNotEmpty) {
+      final usedTypes = kycVerifications
+          .map((e) => (e['documentType'] as String).toUpperCase())
+          .toList();
+
+      if (!(usedTypes.contains('NIN') && usedTypes.contains('BVN'))) {
+        setState(() {
+          _shouldShowKycButton = true;
+        });
+      }
+    } else {
+      setState(() {
+        _shouldShowKycButton = true; // Show button if there's no verification
+      });
+    }
+
+    setState(() {
+      _kycLoading = false;
+    });
+  }
+
 
   Future<void> _loadPrimaryColor() async {
     final prefs = await SharedPreferences.getInstance();
@@ -72,41 +103,83 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     final controller = Provider.of<VirtualCardController>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Virtual Card"),
-      ),
-      body: controller.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : controller.virtualCards.isEmpty
-          ? Center(
-        child: ElevatedButton.icon(
-          onPressed: () => _showCreateCardModal(context, controller),
-          icon: const Icon(Icons.add),
-          label: const Text("Create Virtual Card"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _secondaryColor ?? Colors.blue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            textStyle: const TextStyle(fontSize: 16),
+    return FutureBuilder<List<Map<String, dynamic>>?>(
+      future: KycVerificationController.fetchKycVerifications(),
+      builder: (context, snapshot) {
+        final kycData = snapshot.data ?? [];
+        final usedTypes = kycData
+            .map((item) => (item['documentType'] as String?)?.toUpperCase())
+            .whereType<String>()
+            .toList();
+
+        final bool hasBvn = usedTypes.contains('BVN');
+        final bool hasNin = usedTypes.contains('NIN');
+        final bool isKycComplete = hasBvn && hasNin;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Virtual Card"),
           ),
-        ),
-      )
-          : _buildCardContent(controller.virtualCards.first),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 2,
-        onTabSelected: (index) {
-          if (index != 2) {
-            Navigator.pushReplacementNamed(context, _getRouteForIndex(index));
-          }
-        },
-      ),
+          body: controller.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: controller.virtualCards.isEmpty
+                    ? Center(
+                  child: snapshot.connectionState == ConnectionState.waiting
+                      ? const CircularProgressIndicator()
+                      : isKycComplete
+                      ? ElevatedButton.icon(
+                    onPressed: () => _showCreateCardModal(context, controller),
+                    icon: const Icon(Icons.add),
+                    label: const Text("Create Virtual Card"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _secondaryColor ?? Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                  )
+                      : ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/profile');
+                    },
+                    icon: const Icon(Icons.warning),
+                    label: const Text("Complete KYC"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                )
+                    : _buildCardContent(controller.virtualCards.first),
+              ),
+            ],
+          ),
+          bottomNavigationBar: BottomNavBar(
+            currentIndex: 2,
+            onTabSelected: (index) {
+              if (index != 2) {
+                Navigator.pushReplacementNamed(context, _getRouteForIndex(index));
+              }
+            },
+          ),
+        );
+      },
     );
   }
+
+
+
 
   Widget _buildCardContent(Map<String, dynamic> card) {
     final metadataRaw = card["card_response_metadata"];
