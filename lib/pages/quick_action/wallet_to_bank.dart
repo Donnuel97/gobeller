@@ -1,3 +1,4 @@
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gobeller/utils/currency_input_formatter.dart';
@@ -24,6 +25,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
 
   bool isLoading = false;
   bool _isPinHidden = true; // Add this as a class-level variable if not already declared
+  bool saveBeneficiary = false;
 
   @override
   void initState() {
@@ -74,6 +76,10 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                   ListTile(title: const Text("Beneficiary"), subtitle: Text(context.read<WalletToBankTransferController>().beneficiaryName)),
                   ListTile(title: const Text("Amount"), subtitle: Text("₦ ${_amountController.text}")),
                   ListTile(title: const Text("Narration"), subtitle: Text(_narrationController.text.isNotEmpty ? _narrationController.text : "Wallet to Bank Transfer")),
+                  ListTile(
+                    title: const Text("Save as Beneficiary"),
+                    subtitle: Text(saveBeneficiary ? "Yes" : "No"),
+                  ),
 
                   const SizedBox(height: 16),
 
@@ -150,7 +156,9 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       amount: double.parse(_amountController.text.replaceAll(",", "")),
       description: _narrationController.text,
       transactionPin: _pinController.text,
+      saveBeneficiary: saveBeneficiary, // Add this line (make sure your controller supports it)
     );
+
 
     setState(() {
       isLoading = false;
@@ -255,30 +263,45 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                     const SizedBox(height: 16),
 
                     const Text("Select Bank"),
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      value: selectedBank,
-                      decoration: const InputDecoration(border: OutlineInputBorder()),
-                      items: controller.banks.map((bank) {
-                        return DropdownMenuItem<String>(
-                          value: bank['bank_code'],
-                          child: Text(
-                            bank['bank_name']!,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
+                    DropdownSearch<Map<String, String>>(
+                      items: controller.banks.map<Map<String, String>>((bank) => {
+                        "bank_code": bank["bank_code"].toString(),
+                        "bank_name": bank["bank_name"].toString(),
                       }).toList(),
+                      itemAsString: (bank) => bank["bank_name"]!,
+                      selectedItem: controller.banks
+                          .map<Map<String, String>>((bank) => {
+                        "bank_code": bank["bank_code"].toString(),
+                        "bank_name": bank["bank_name"].toString(),
+                      })
+                          .firstWhere(
+                            (bank) => bank["bank_code"] == selectedBank,
+                        orElse: () => {"bank_code": "", "bank_name": "Select Bank"},
+                      ),
+                      dropdownDecoratorProps: const DropDownDecoratorProps(
+                        dropdownSearchDecoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          labelText: "Select Bank",
+                        ),
+                      ),
                       onChanged: (value) {
                         setState(() {
-                          selectedBank = value;
+                          selectedBank = value?["bank_code"];
                           selectedBankId = controller.banks.firstWhere(
-                                (bank) => bank['bank_code'] == value,
+                                (bank) => bank['bank_code'].toString() == selectedBank,
                             orElse: () => {'id': 'Unknown'},
                           )['id'];
                         });
                       },
                       validator: (value) => value == null ? "Please select a bank" : null,
+                      popupProps: const PopupProps.menu(
+                        showSearchBox: true,
+                        searchFieldProps: TextFieldProps(
+                          decoration: InputDecoration(labelText: "Search Bank"),
+                        ),
+                      ),
                     ),
+
 
                     const SizedBox(height: 16),
 
@@ -330,6 +353,18 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                         border: OutlineInputBorder(),
                         labelText: "Narration (Optional)",
                       ),
+                    ),
+
+                    CheckboxListTile(
+                      title: const Text("Save as Beneficiary"),
+                      value: saveBeneficiary,
+                      onChanged: (value) {
+                        setState(() {
+                          saveBeneficiary = value ?? false;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
                     ),
 
                     const SizedBox(height: 16),

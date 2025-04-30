@@ -226,6 +226,7 @@ class WalletToBankTransferController with ChangeNotifier {
     required double amount,
     required String description,
     required String transactionPin,
+    required bool saveBeneficiary,
   }) async {
     _isProcessing = true;
     notifyListeners();

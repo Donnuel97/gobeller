@@ -23,7 +23,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+    _videoController = VideoPlayerController.asset("")
       ..initialize().then((_) {
         setState(() {});
         _videoController!.setLooping(true);
