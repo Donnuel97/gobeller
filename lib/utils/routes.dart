@@ -15,6 +15,11 @@ import 'package:gobeller/pages/quick_action/electric_meter_page.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_wallet.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_bank.dart';
 
+import 'package:gobeller/pages/coming_soon/corp_soon.dart';
+import 'package:gobeller/pages/coming_soon/fx_soon.dart';
+import 'package:gobeller/pages/coming_soon/loan_soon.dart';
+
+
 import 'package:gobeller/pages/success_screens/registration_success_screen/regSuccess.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/airtime_success.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/data_success.dart';
@@ -51,6 +56,10 @@ class Routes {
   static const String cable_result = '/cable_result';
   static const String card_details = '/card_details';
 
+  static const String coming_soon = '/coming_soon';
+  static const String fx_soon = '/fx_soon';
+  static const String loan_soon = '/loan_soon';
+
 
 
 
@@ -76,6 +85,9 @@ class Routes {
     electricity_result: (context) => const ElectricityResultPage(),
     bank_result: (context) => const WalletTransferResultPage(),
     cable_result: (context) => const CableTVResultPage(),
+    coming_soon: (context) => const  UpgradeScreen(),
+    loan_soon: (context) => const  LoanUpgradeScreen(),
+    fx_soon: (context) => const  FxUpgradeScreen(),
     card_details: (context) { final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;return CardDetailsPage(card: card);},
   };
 }

@@ -23,6 +23,11 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
   String? selectedNetwork;
   bool isProcessing = false;
   bool isPinVisible = false;
+  bool get _canAccessPinField {
+    return selectedNetwork != null &&
+        phoneController.text.trim().isNotEmpty &&
+        amountController.text.trim().isNotEmpty;
+  }
 
   Color? _primaryColor;
   Color? _secondaryColor;
@@ -31,6 +36,11 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
   void initState() {
     super.initState();
     _loadPrimaryColor();
+    phoneController.addListener(_onInputChanged);
+    amountController.addListener(_onInputChanged);
+  }
+  void _onInputChanged() {
+    setState(() {}); // Triggers rebuild so _canAccessPinField re-evaluates
   }
 
   Future<void> _loadPrimaryColor() async {
@@ -63,6 +73,8 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
     phoneController.dispose();
     amountController.dispose();
     pinController.dispose();
+    phoneController.removeListener(_onInputChanged);
+    amountController.removeListener(_onInputChanged);
     super.dispose();
   }
 
@@ -227,28 +239,37 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
 
             const SizedBox(height: 24),
 
-            const Text("Transaction PIN:",
+            Text("Transaction PIN:",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: pinController,
-              obscureText: !isPinVisible,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: "Enter your PIN",
-                prefixIcon: const Icon(Icons.lock),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(isPinVisible ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () {
-                    setState(() => isPinVisible = !isPinVisible);
-                  },
+
+            IgnorePointer(
+              ignoring: !_canAccessPinField,
+              child: Opacity(
+                opacity: _canAccessPinField ? 1.0 : 0.5,
+                child: TextFormField(
+                  controller: pinController,
+                  obscureText: !isPinVisible,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _canAccessPinField
+                        ? "Enter your PIN"
+                        : "Fill other fields to unlock",
+                    prefixIcon: const Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(isPinVisible ? Icons.visibility_off : Icons.visibility),
+                      onPressed: _canAccessPinField
+                          ? () => setState(() => isPinVisible = !isPinVisible)
+                          : null,
+                    ),
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
                 ),
               ),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4),
-              ],
             ),
 
             const SizedBox(height: 24),

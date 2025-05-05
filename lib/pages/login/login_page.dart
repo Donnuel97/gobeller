@@ -4,6 +4,8 @@ import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/login_controller.dart'; // ✅ Imported
 import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/utils/biometric_helper.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,7 +34,37 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _loadPrimaryColorAndLogo();
     _checkStoredUsername();
+    _autoBiometricLogin(); // <- Call here
   }
+
+  Future<void> _autoBiometricLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasUsername = prefs.getString('saved_username') != null;
+    final hasPassword = prefs.getString('saved_password') != null;
+
+    if (hasUsername && hasPassword) {
+      final didAuth = await BiometricHelper.authenticate();
+      if (didAuth && mounted) {
+        final result = await _loginController.loginUser(useStoredCredentials: true);
+
+        if (!mounted) return;
+
+        if (result['success'] == true) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardPage()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
+          );
+        }
+      }
+    }
+  }
+
+
+
 
   Future<void> _loadPrimaryColorAndLogo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,7 +167,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  @override
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +267,40 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // ✅ Biometric login button (conditionally shown)
+                    if (_storedUsername != null)
+                      Center(
+                        child: IconButton(
+                          icon: const Icon(Icons.fingerprint, size: 40, color: Colors.blueGrey),
+                          onPressed: () async {
+                            final didAuth = await BiometricHelper.authenticate();
+                            if (didAuth) {
+                              final result = await _loginController.loginUser(useStoredCredentials: true);
+
+                              if (!mounted) return;
+
+                              if (result['success'] == true) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DashboardPage()),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
+                                );
+                              }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Fingerprint authentication failed')),
+                              );
+                            }
+                          },
+
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
+
                     TextButton(
                       onPressed: () =>
                           Navigator.pushNamed(context, '/register'),
@@ -242,6 +308,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
+
 
                 if (_hideUsernameField)
                   TextButton(

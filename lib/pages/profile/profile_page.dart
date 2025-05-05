@@ -141,7 +141,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
 
                   const SizedBox(height: 20),
-
+                  _kycSettingsSection(),
+                  const SizedBox(height: 10),
 
 
                   // 🟢 Personal Information Section
@@ -170,21 +171,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 10),
 
 
-
-
-
-
-                  // // 💰 Wallet Information Section
-                  // _buildProfileSection("Wallet Information", [
-                  //   _buildProfileItem(Icons.wallet, "Wallet Number", userProfile!['wallet_number']),
-                  //   _buildProfileItem(
-                  //     Icons.attach_money,
-                  //     "Wallet Balance",
-                  //     "${userProfile!['wallet_currency']} ${double.parse(userProfile!['wallet_balance'].toString()).toStringAsFixed(2)}",
-                  //   ),
-                  //   _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
-                  // ]),
-
                   const SizedBox(height: 30),
 
 
@@ -203,15 +189,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       _buildProfileItem(Icons.public, "Country", supportDetails!['address']?['country'] ?? "N/A"),
                     ]),
 
-                  // // 📞 Contact Information Section
-                  // _buildProfileSection("Contact Information", [
-                  //   _buildProfileItem(Icons.email, "Email", userProfile!['email']),
-                  //   _buildProfileItem(Icons.phone, "Phone", userProfile!['telephone']),
-                  //   _buildProfileItem(Icons.business, "Organization", userProfile!['organization']),
-                  // ]),
-                  //
-                  // const SizedBox(height: 10),
-                  // Logout Button
+
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -330,6 +308,92 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: _showChangePinDialog,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
+                // Stack(
+                //   children: [
+                //     ListTile(
+                //       leading: Icon(
+                //         isKycComplete ? Icons.check_circle : Icons.link,
+                //         color: isKycComplete ? Colors.green : Colors.blue,
+                //       ),
+                //       title: Text(
+                //         isKycComplete ? 'KYC Completed' : 'Link KYC',
+                //         style: const TextStyle(fontWeight: FontWeight.w500),
+                //       ),
+                //       trailing: _kycRequestLoading
+                //           ? const SizedBox(
+                //         width: 20,
+                //         height: 20,
+                //         child: CircularProgressIndicator(strokeWidth: 2),
+                //       )
+                //           : const Icon(Icons.chevron_right),
+                //       onTap: isKycComplete
+                //           ? null
+                //           : () async {
+                //         setState(() {
+                //           _kycRequestLoading = true;
+                //         });
+                //
+                //         final profileData = await ProfileController.fetchUserProfile();
+                //         final walletsData = await ProfileController.fetchWallets();
+                //
+                //         setState(() {
+                //           _kycRequestLoading = false;
+                //         });
+                //
+                //         if (profileData != null && walletsData?['data'] is List) {
+                //           _showLinkKycDialog(
+                //             Map<String, dynamic>.from(profileData),
+                //             List<Map<String, dynamic>>.from(walletsData['data']),
+                //           );
+                //         } else {
+                //           ScaffoldMessenger.of(context).showSnackBar(
+                //             const SnackBar(content: Text('Unable to locate wallet, Please create a wallet')),
+                //           );
+                //         }
+                //       },
+                //       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                //     ),
+                //   ],
+                // ),
+
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _kycSettingsSection() {
+    return FutureBuilder<List<Map<String, dynamic>>?>(
+      future: KycVerificationController.fetchKycVerifications(),
+      builder: (context, snapshot) {
+        final kycData = snapshot.data ?? [];
+
+        // Extract all completed document types in uppercase
+        final completedTypes = kycData
+            .map((e) => (e['documentType'] as String).toUpperCase())
+            .toSet();
+
+        final bool isKycComplete = completedTypes.containsAll({'BVN', 'NIN'});
+
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 5,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'KYC Settings',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const Divider(),
+
                 Stack(
                   children: [
                     ListTile(
@@ -456,7 +520,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Center(
                     child: Text(
-                      "Link KYC Document",
+                      "Link KYC Identity ID",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

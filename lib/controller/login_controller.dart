@@ -12,33 +12,50 @@ class LoginController with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Future<Map<String, dynamic>> loginUser({
-    required String username,
-    required String password,
-    }) async {
+    String? username,
+    String? password,
+    bool useStoredCredentials = false,
+  }) async {
     _setLoading(true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String appId = prefs.getString('appId') ?? '';
-      if (appId.isEmpty) {
+      String? finalUsername = username;
+      String? finalPassword = password;
+
+      if (useStoredCredentials) {
+        finalUsername = prefs.getString('saved_username');
+        finalPassword = prefs.getString('saved_password');
+        if (finalUsername == null || finalPassword == null) {
+          return {
+            'success': false,
+            'message': 'Stored credentials not found.',
+          };
+        }
+      }
+
+      if (finalUsername == null || finalPassword == null) {
         return {
           'success': false,
-          'message': '⚙️ App configuration missing. Please restart the app.'
+          'message': 'Username and password are required.',
         };
       }
 
+      // ...existing code...
+      // Replace the old username/password use with finalUsername/finalPassword
+      final body = {
+        'username': finalUsername,
+        'password': finalPassword,
+      };
+
       const String endpoint = '/login';
+      final appId = prefs.getString('appId') ?? '';
       final headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'AppID': appId,
       };
-      final body = {
-        'username': username,
-        'password': password,
-      };
 
-      // ⚡ Add timeout to request
       final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers)
           .timeout(const Duration(seconds: 10));
 
@@ -47,73 +64,37 @@ class LoginController with ChangeNotifier {
 
       if (status && response['data'] != null) {
         final data = response['data'] as Map<String, dynamic>;
-
         final String? token = data['token'] as String?;
+
         if (token == null || token.isEmpty) {
           return {
             'success': false,
             'message': 'Login succeeded but no token was returned.'
           };
         }
+
         await prefs.setString('auth_token', token);
+        await prefs.setString('saved_username', finalUsername); // ensure username is saved
+        await prefs.setString('saved_password', finalPassword); // 💾 store password (optional)
 
         final profile = data['profile'];
         if (profile != null) {
           await prefs.setString('user_profile', jsonEncode(profile));
-
-          final String? firstName = profile['first_name'];
-          final String? fullName = profile['full_name'];
-          if (firstName != null) {
-            await prefs.setString('first_name', firstName);
-          }
-          if (fullName != null) {
-            await prefs.setString('full_name', fullName);
-          }
+          await prefs.setString('first_name', profile['first_name'] ?? '');
+          await prefs.setString('full_name', profile['full_name'] ?? '');
         }
 
         return {'success': true, 'message': '✅ Login successful!'};
       } else {
-        String friendly = '❌ Login failed. Please try again.';
-        if (message.toLowerCase().contains('invalid credentials')) {
-          friendly = '⚠️ Incorrect username or password.';
-        } else if (message.isNotEmpty) {
-          friendly = message;
-        }
-        return {'success': false, 'message': friendly};
+        return {'success': false, 'message': message.isNotEmpty ? message : '❌ Login failed.'};
       }
-
-    } on SocketException {
-      return {
-        'success': false,
-        'message': '📶 No internet connection. Please check your network and try again.'
-      };
-    } on TimeoutException {
-      return {
-        'success': false,
-        'message': '⏱️ Login request timed out. Please try again shortly.'
-      };
-    } on ClientException {
-      return {
-        'success': false,
-        'message': '🌐 Unable to connect to server. Please try again later.'
-      };
     } catch (e) {
-      final error = e.toString().toLowerCase();
-      if (error.contains("socketexception") || error.contains("failed host lookup")) {
-        return {
-          'success': false,
-          'message': '📡 Network error. Please check your internet connection.'
-        };
-      }
-
-      return {
-        'success': false,
-        'message': '❌ Something went wrong. Please try again shortly.'
-      };
+      return {'success': false, 'message': '❌ Unexpected error: $e'};
     } finally {
       _setLoading(false);
     }
   }
+
 
   void _setLoading(bool val) {
     _isLoading = val;
