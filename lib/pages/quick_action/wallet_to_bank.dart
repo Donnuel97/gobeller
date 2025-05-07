@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gobeller/utils/currency_input_formatter.dart';
 import 'package:gobeller/controller/wallet_to_bank_controller.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletToBankTransferPage extends StatefulWidget {
   const WalletToBankTransferPage({super.key});
@@ -27,6 +30,11 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   bool _isPinHidden = true; // Add this as a class-level variable if not already declared
   bool saveBeneficiary = false;
 
+  List<Map<String, dynamic>> filteredSuggestions = [];
+  bool showSuggestions = false;
+
+
+
   @override
   void initState() {
     super.initState();
@@ -34,9 +42,11 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
       controller.fetchBanks();
       controller.fetchSourceWallets();
+      controller.fetchSavedBeneficiaries(); // 👈 Add this
       _resetForm();
     });
   }
+
 
 
   @override
@@ -156,20 +166,46 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       amount: double.parse(_amountController.text.replaceAll(",", "")),
       description: _narrationController.text,
       transactionPin: _pinController.text,
-      saveBeneficiary: saveBeneficiary, // Add this line (make sure your controller supports it)
+      saveBeneficiary: saveBeneficiary,
     );
 
+    if (!mounted) return;
+
+    // 🧠 Attempt to save beneficiary only if transfer succeeded
+    if (saveBeneficiary && result["success"]) {
+      final saveResult = await controller.saveBeneficiary(
+        beneficiaryName: controller.beneficiaryName,
+        accountNumber: _accountNumberController.text,
+        bankId: selectedBankId!,
+        transactionPin: _pinController.text,
+        nickname: null,
+      );
+
+      // 🔁 Refresh saved beneficiaries list regardless of outcome
+      await controller.fetchSavedBeneficiaries(); // ⬅️ Refetch and overwrite
+
+      if (!saveResult["success"] &&
+          !saveResult["message"]
+              .toString()
+              .contains("Beneficiary Identifier has already been taken")) {
+        _showResultDialog("⚠️ Transfer succeeded, but saving beneficiary failed: ${saveResult["message"]}");
+      }
+    }
 
     setState(() {
       isLoading = false;
     });
 
-    if (!mounted) return;
-
     if (result['success']) {
-      // 🔥 CLEAR the form if successful
-      _resetForm();
+      _resetForm(); // Reset form on success
+
+      // ✅ Refetch and store beneficiaries
+      await controller.fetchSavedBeneficiaries(); // This refetches and sets _savedBeneficiaries in controller
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_beneficiaries', jsonEncode(controller.savedBeneficiaries));
     }
+
 
     Navigator.pushNamed(
       context,
@@ -181,6 +217,8 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       },
     );
   }
+
+
 
 
   void _showResultDialog(String message) {
@@ -214,6 +252,63 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
     );
   }
 
+  void _showSavedBeneficiaries(BuildContext context) {
+    final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
+    final beneficiaries = controller.savedBeneficiaries;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(16),
+        height: MediaQuery.of(context).size.height * 0.5,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Saved Beneficiaries", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: beneficiaries.isEmpty
+                  ? const Center(child: Text("No saved beneficiaries."))
+                  : ListView.separated(
+                itemCount: beneficiaries.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (_, index) {
+                  final b = beneficiaries[index];
+                  return ListTile(
+                    title: Text(b['beneficiary_name'] ?? b['account_number']),
+                    subtitle: Text("${b['bank_name']} - ${b['account_number']}"),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.pop(context); // Close the bottom sheet
+                      setState(() {
+                        _accountNumberController.text = b["account_number"];
+                        selectedBankId = b["bank_id"];
+                        final bank = controller.banks.firstWhere(
+                              (bk) => bk['id'].toString() == b['bank_id'],
+                          orElse: () => {'bank_code': '', 'bank_name': ''},
+                        );
+                        selectedBank = bank['bank_code'];
+                      });
+                      controller.verifyBankAccount(
+                        accountNumber: b["account_number"],
+                        bankId: b["bank_id"],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
 
   void _resetForm() {
     _formKey.currentState?.reset();
@@ -236,7 +331,24 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
     final controller = Provider.of<WalletToBankTransferController>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Wallet to Bank Transfer")),
+      appBar: AppBar(
+        title: const Text("Wallet to Bank Transfer"),
+        // actions: [
+        //   TextButton.icon(
+        //     icon: const Icon(Icons.people_alt_outlined, color: Colors.black),
+        //     label: const Text(
+        //       "Saved Beneficiary",
+        //       style: TextStyle(color: Colors.black),
+        //     ),
+        //     onPressed: () {
+        //       _showSavedBeneficiaries(context);
+        //     },
+        //   ),
+        // ],
+      ),
+
+
+
       body: Stack(
         children: [
           Padding(
@@ -260,7 +372,29 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                       onChanged: (value) => setState(() => selectedSourceWallet = value),
                       validator: (value) => value == null ? "Please select a source wallet" : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
+
+
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _showSavedBeneficiaries(context),
+                          icon: const Icon(Icons.people_alt_outlined, size: 18),
+                          label: const Text("Saved Beneficiary"),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Color(0xFFEB6D00), // 👈 Orange text
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 30),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 2),
+
 
                     const Text("Select Bank"),
                     DropdownSearch<Map<String, String>>(
@@ -284,15 +418,17 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                           // labelText: "Select Bank",
                         ),
                       ),
+
                       onChanged: (value) {
                         setState(() {
                           selectedBank = value?["bank_code"];
                           selectedBankId = controller.banks.firstWhere(
                                 (bank) => bank['bank_code'].toString() == selectedBank,
-                            orElse: () => {'id': 'Unknown'},
+                            orElse: () => {'id': null},
                           )['id'];
                         });
                       },
+
                       validator: (value) => value == null ? "Please select a bank" : null,
                       popupProps: const PopupProps.menu(
                         showSearchBox: true,
@@ -314,12 +450,83 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                         // labelText: "Account Number",
                       ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+
                       onChanged: (value) {
-                        if (value.length == 10 && selectedBankId != null) {
-                          controller.verifyBankAccount(accountNumber: value, bankId: selectedBankId!);
+                        final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
+
+                        if (value.length >= 3) {
+                          final suggestions = controller.savedBeneficiaries.where((b) {
+                            return b['account_number'] != null &&
+                                b['account_number'].toString().contains(value);
+                          }).toList();
+
+                          setState(() {
+                            filteredSuggestions = suggestions;
+                            showSuggestions = suggestions.isNotEmpty;
+                          });
+                        } else {
+                          setState(() {
+                            showSuggestions = false;
+                          });
+                        }
+
+                        if (value.length == 10 && selectedBankId != null && selectedBankId != 'Unknown') {
+                          controller.verifyBankAccount(
+                            accountNumber: value,
+                            bankId: selectedBankId!,
+                          );
                         }
                       },
+
+
                     ),
+                    if (showSuggestions)
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 150),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: filteredSuggestions.length,
+                          separatorBuilder: (_, __) => Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final suggestion = filteredSuggestions[index];
+                            return ListTile(
+                              dense: true,
+                              title: Text(suggestion['beneficiary_name'] ?? suggestion['account_number']),
+                              subtitle: Text("${suggestion['bank_name']} - ${suggestion['account_number']}"),
+                              onTap: () {
+                                setState(() {
+                                  _accountNumberController.text = suggestion['account_number'];
+                                  selectedBankId = suggestion['bank_id'];
+                                  showSuggestions = false;
+
+                                  final bank = controller.banks.firstWhere(
+                                        (bk) => bk['id'].toString() == suggestion['bank_id'],
+                                    orElse: () => {'bank_code': '', 'bank_name': ''},
+                                  );
+                                  selectedBank = bank['bank_code'];
+                                });
+
+                                controller.verifyBankAccount(
+                                  accountNumber: suggestion['account_number'],
+                                  bankId: suggestion['bank_id'],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
 
                     const SizedBox(height: 8),
 
@@ -351,7 +558,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                       controller: _narrationController,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        labelText: "Narration (Optional)",
+                        // labelText: "Narration (Optional)",
                       ),
                     ),
 

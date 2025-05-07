@@ -22,6 +22,8 @@ class WalletToBankTransferController with ChangeNotifier {
   String _beneficiaryName = "";
   String get beneficiaryName => _beneficiaryName;
 
+  List<Map<String, dynamic>> _savedBeneficiaries = [];
+  List<Map<String, dynamic>> get savedBeneficiaries => _savedBeneficiaries;
 
 
   // Setter method to update beneficiary name
@@ -273,7 +275,120 @@ class WalletToBankTransferController with ChangeNotifier {
       return {"success": false, "message": _transactionMessage};
     }
   }
+  /// **Save a new bank account beneficiary**
+  Future<Map<String, dynamic>> saveBeneficiary({
+    required String beneficiaryName,
+    required String accountNumber,
+    required String bankId,
+    required String transactionPin,
+    String? nickname,
+    String? currencyId, // Optional
+  }) async {
+    try {
+      final String? token = await _getAuthToken();
+      if (token == null) {
+        return {
+          "success": false,
+          "message": "❌ You are not logged in. Please log in to continue."
+        };
+      }
 
+      final Map<String, dynamic> requestBody = {
+        "beneficiary_type": "bank-account", // explicitly hardcoded
+        "beneficiary_name": beneficiaryName,
+        "beneficiary_identifier": accountNumber,
+        "bank_id": bankId,
+        "transaction_pin": transactionPin,
+      };
+
+      if (nickname != null && nickname.isNotEmpty) {
+        requestBody["nickname"] = nickname;
+      }
+
+      if (currencyId != null && currencyId.isNotEmpty) {
+        requestBody["currency_id"] = currencyId;
+      }
+
+      // Log payload
+      debugPrint("📤 Saving beneficiary with payload: ${jsonEncode(requestBody)}");
+
+      final response = await ApiService.postRequest(
+        "/customers/beneficiaries/store/new",
+        requestBody,
+        extraHeaders: {'Authorization': 'Bearer $token'},
+      );
+
+      // Optional: log response for debugging
+      debugPrint("📥 Response from save beneficiary: ${jsonEncode(response)}");
+
+      if (response["status"] == true) {
+        return {
+          "success": true,
+          "message": response["message"] ?? "✅ Beneficiary saved successfully."
+        };
+      } else {
+        return {
+          "success": false,
+          "message": response["message"] ?? "❌ Failed to save beneficiary."
+        };
+      }
+    } catch (e) {
+      debugPrint("❌ Error saving beneficiary: $e");
+      return {
+        "success": false,
+        "message": "❌ An error occurred while saving the beneficiary. Please try again."
+      };
+    }
+  }
+
+  /// **Fetches saved beneficiaries for the logged-in customer**
+  Future<void> fetchSavedBeneficiaries() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final String? token = await _getAuthToken();
+      if (token == null) {
+        _transactionMessage = "❌ You are not logged in. Please log in to continue.";
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final response = await ApiService.getRequest(
+        "/customers/beneficiaries",
+        extraHeaders: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response["status"] == true && response["data"] != null) {
+        final List data = response["data"];
+        _savedBeneficiaries = data.map<Map<String, dynamic>>((beneficiary) {
+          return {
+            "id": beneficiary["id"],
+            "beneficiary_name": beneficiary["beneficiary_name"] ?? "",
+            "account_number": beneficiary["beneficiary_identifier"] ?? "",
+            "bank_id": beneficiary["bank_id"] ?? "",
+            "bank_name": beneficiary["bank_name"] ?? "",
+            "nickname": beneficiary["nickname"] ?? "",
+          };
+        }).toList();
+
+        // ✅ Save to SharedPreferences
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString('saved_beneficiaries', jsonEncode(_savedBeneficiaries));
+      } else {
+        _transactionMessage = "⚠️ Could not fetch saved beneficiaries.";
+        _savedBeneficiaries = [];
+      }
+    } catch (e) {
+      _transactionMessage = "❌ Error fetching beneficiaries. Please try again.";
+      _savedBeneficiaries = [];
+      debugPrint("❌ fetchSavedBeneficiaries error: $e");
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
 
 
 }

@@ -22,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordObscured = true;
   bool _isLoading = false;
   bool _hideUsernameField = false;
+  bool _isBiometricLoading = false;
 
   String? _storedUsername;
   String? _displayName;
@@ -36,6 +37,19 @@ class _LoginPageState extends State<LoginPage> {
     _checkStoredUsername();
     _autoBiometricLogin(); // <- Call here
   }
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  void _hideLoadingDialog() {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
 
   Future<void> _autoBiometricLogin() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,9 +57,15 @@ class _LoginPageState extends State<LoginPage> {
     final hasPassword = prefs.getString('saved_password') != null;
 
     if (hasUsername && hasPassword) {
+      setState(() => _isBiometricLoading = true);
+      _showLoadingDialog();
+
       final didAuth = await BiometricHelper.authenticate();
+
       if (didAuth && mounted) {
         final result = await _loginController.loginUser(useStoredCredentials: true);
+
+        _hideLoadingDialog();
 
         if (!mounted) return;
 
@@ -59,9 +79,20 @@ class _LoginPageState extends State<LoginPage> {
             SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
           );
         }
+      } else {
+        _hideLoadingDialog();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric authentication failed')),
+          );
+        }
       }
+
+      if (mounted) setState(() => _isBiometricLoading = false);
     }
   }
+
 
 
 
@@ -272,12 +303,20 @@ class _LoginPageState extends State<LoginPage> {
                       Center(
                         child: IconButton(
                           icon: const Icon(Icons.fingerprint, size: 40, color: Colors.blueGrey),
-                          onPressed: () async {
+                          onPressed: _isBiometricLoading
+                              ? null
+                              : () async {
+                            setState(() => _isBiometricLoading = true);
+                            _showLoadingDialog();
+
                             final didAuth = await BiometricHelper.authenticate();
+
                             if (didAuth) {
                               final result = await _loginController.loginUser(useStoredCredentials: true);
 
                               if (!mounted) return;
+
+                              _hideLoadingDialog();
 
                               if (result['success'] == true) {
                                 Navigator.pushReplacement(
@@ -290,14 +329,18 @@ class _LoginPageState extends State<LoginPage> {
                                 );
                               }
                             } else {
+                              _hideLoadingDialog();
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Fingerprint authentication failed')),
                               );
                             }
-                          },
 
+                            if (mounted) setState(() => _isBiometricLoading = false);
+                          },
                         ),
                       ),
+
 
                     const SizedBox(height: 16),
 

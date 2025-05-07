@@ -19,6 +19,7 @@ import 'package:gobeller/pages/coming_soon/corp_soon.dart';
 import 'package:gobeller/pages/coming_soon/fx_soon.dart';
 import 'package:gobeller/pages/coming_soon/loan_soon.dart';
 
+import 'package:gobeller/pages/corporate_account/corporate_registration.dart';
 
 import 'package:gobeller/pages/success_screens/registration_success_screen/regSuccess.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/airtime_success.dart';
@@ -60,6 +61,8 @@ class Routes {
   static const String fx_soon = '/fx_soon';
   static const String loan_soon = '/loan_soon';
 
+  static const String corporate = '/corporate';
+
 
 
 
@@ -88,6 +91,7 @@ class Routes {
     coming_soon: (context) => const  UpgradeScreen(),
     loan_soon: (context) => const  LoanUpgradeScreen(),
     fx_soon: (context) => const  FxUpgradeScreen(),
+    corporate: (context) => const  CorporateAccountRegistrationPage(),
     card_details: (context) { final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;return CardDetailsPage(card: card);},
   };
 }

@@ -74,7 +74,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
 
     // New upcoming features
     if (_menuItems['display-corporate-account-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.business_center, label: "Corporate Account", route: Routes.coming_soon));
+      cards.add(_buildMenuCard(context, icon: Icons.business_center, label: "Corporate Account", route: Routes.corporate));
     }
     if (_menuItems['display-loan-menu'] == true) {
       cards.add(_buildMenuCard(context, icon: Icons.monetization_on_outlined, label: "Loan", route: Routes.loan_soon));
