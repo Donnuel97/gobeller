@@ -68,7 +68,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
         NavigationDestination(
           selectedIcon: Icon(Icons.credit_card, color: _primaryColor),
           icon: const Icon(Icons.credit_card_outlined),
-          label: 'Cards',
+          label: 'Virtual Card',
         ),
         NavigationDestination(
           selectedIcon: Icon(Icons.account_circle_rounded, color: _primaryColor),

@@ -21,26 +21,29 @@ class OrganizationController extends ChangeNotifier {
     notifyListeners();
 
     const String url = 'https://app.gobeller.com/api/v1/organizations/sddtif';
-    // sddtif, 101, Darpay, Lumi
+
     try {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final newOrganizationData = jsonDecode(response.body);
-        debugPrint("✅ Organization Data: ${jsonEncode(newOrganizationData)}");
+        final fullResponse = jsonDecode(response.body);
+
+        debugPrint("✅ Full Org Response: ${jsonEncode(fullResponse)}");
 
         // Only update SharedPreferences if the data has changed
-        if (!_isEqual(organizationData, newOrganizationData)) {
-          organizationData = newOrganizationData;
-          final prefs = await SharedPreferences.getInstance();
-          prefs.setString('organizationData', jsonEncode(organizationData));
+        if (!_isEqual(organizationData, fullResponse)) {
+          organizationData = fullResponse; // Save full response now
 
-          appId = organizationData?['data']['id'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('organizationData', jsonEncode(organizationData));
+
+          // Extract and save App ID from inside the response
+          appId = organizationData?['data']?['id'];
           if (appId != null) {
             prefs.setString('appId', appId!);
           }
 
-          // Fetch App Settings after organization data is fetched
+          // Proceed to fetch settings
           await fetchAppSettings();
         }
       } else {
@@ -53,6 +56,7 @@ class OrganizationController extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
 
   /// Fetch App Settings and save to SharedPreferences if it's different from the cached response
   Future<void> fetchAppSettings() async {

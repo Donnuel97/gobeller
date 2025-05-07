@@ -155,7 +155,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             )
           else
             // Container(color: Colors.black),
-            Container(color: _tertiaryColor?.withOpacity(0.8),),
+            Container(color: _tertiaryColor?.withOpacity(1),),
 
           Container(
             // color: const Color(0xCC051330),

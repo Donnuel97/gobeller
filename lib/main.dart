@@ -97,7 +97,7 @@ class _MyAppState extends State<MyApp> {
               colorScheme: darkColorScheme,
               inputDecorationTheme: CustomInputDecorationTheme.inputDecorationTheme,
             ),
-            initialRoute: Routes.initial,
+            initialRoute: Routes.splash,
             routes: Routes.routes, // Use named routes
           );
         },

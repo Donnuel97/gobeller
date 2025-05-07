@@ -364,6 +364,36 @@ class ApiService {
     return '$baseUrl$basePath$endpoint';
   }
 
+  // static Future<Map<String, dynamic>> getRequest(String endpoint, {Map<String, String>? extraHeaders}) async {
+  //   final url = _buildUrl(endpoint);
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('access_token');
+  //   final defaultHeaders = await ConstApi.getHeaders();
+  //
+  //   Future<http.Response> makeRequest() {
+  //     return http.get(
+  //       Uri.parse(url),
+  //       headers: {
+  //         ...defaultHeaders,
+  //         if (token != null) 'Authorization': 'Bearer $token',
+  //         if (extraHeaders != null) ...extraHeaders,
+  //       },
+  //     );
+  //   }
+  //
+  //   try {
+  //     http.Response response = await makeRequest();
+  //     if (response.statusCode == 401) {
+  //       response = await makeRequest(); // Retry once
+  //       if (response.statusCode == 401) {
+  //         navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
+  //       }
+  //     }
+  //     return _handleResponse(response);
+  //   } catch (e) {
+  //     return {'status': 'error', 'message': 'GET request error: $e'};
+  //   }
+  // }
   static Future<Map<String, dynamic>> getRequest(String endpoint, {Map<String, String>? extraHeaders}) async {
     final url = _buildUrl(endpoint);
     final prefs = await SharedPreferences.getInstance();
@@ -385,9 +415,7 @@ class ApiService {
       http.Response response = await makeRequest();
       if (response.statusCode == 401) {
         response = await makeRequest(); // Retry once
-        if (response.statusCode == 401) {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
-        }
+        return _handleResponse(response, retryAttempted: true);
       }
       return _handleResponse(response);
     } catch (e) {
@@ -395,6 +423,38 @@ class ApiService {
     }
   }
 
+
+  // static Future<Map<String, dynamic>> postRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
+  //   final url = _buildUrl(endpoint);
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('access_token');
+  //   final defaultHeaders = await ConstApi.getHeaders();
+  //
+  //   Future<http.Response> makeRequest() {
+  //     return http.post(
+  //       Uri.parse(url),
+  //       headers: {
+  //         ...defaultHeaders,
+  //         if (token != null) 'Authorization': 'Bearer $token',
+  //         if (extraHeaders != null) ...extraHeaders,
+  //       },
+  //       body: jsonEncode(formData),
+  //     );
+  //   }
+  //
+  //   try {
+  //     http.Response response = await makeRequest();
+  //     if (response.statusCode == 401) {
+  //       response = await makeRequest(); // Retry once
+  //       if (response.statusCode == 401) {
+  //         navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
+  //       }
+  //     }
+  //     return _handleResponse(response);
+  //   } catch (e) {
+  //     return {'status': 'error', 'message': 'POST request error: $e'};
+  //   }
+  // }
   static Future<Map<String, dynamic>> postRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
     final url = _buildUrl(endpoint);
     final prefs = await SharedPreferences.getInstance();
@@ -417,15 +477,46 @@ class ApiService {
       http.Response response = await makeRequest();
       if (response.statusCode == 401) {
         response = await makeRequest(); // Retry once
-        if (response.statusCode == 401) {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
-        }
+        return _handleResponse(response, retryAttempted: true);
       }
       return _handleResponse(response);
     } catch (e) {
       return {'status': 'error', 'message': 'POST request error: $e'};
     }
   }
+
+
+  // static Future<Map<String, dynamic>> patchRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
+  //   final url = _buildUrl(endpoint);
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('access_token');
+  //   final defaultHeaders = await ConstApi.getHeaders();
+  //
+  //   Future<http.Response> makeRequest() {
+  //     return http.patch(
+  //       Uri.parse(url),
+  //       headers: {
+  //         ...defaultHeaders,
+  //         if (token != null) 'Authorization': 'Bearer $token',
+  //         if (extraHeaders != null) ...extraHeaders,
+  //       },
+  //       body: jsonEncode(formData),
+  //     );
+  //   }
+  //
+  //   try {
+  //     http.Response response = await makeRequest();
+  //     if (response.statusCode == 401) {
+  //       response = await makeRequest(); // Retry once
+  //       if (response.statusCode == 401) {
+  //         navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
+  //       }
+  //     }
+  //     return _handleResponse(response);
+  //   } catch (e) {
+  //     return {'status': 'error', 'message': 'PATCH request error: $e'};
+  //   }
+  // }
 
   static Future<Map<String, dynamic>> patchRequest(String endpoint, Map<String, dynamic> formData, {Map<String, String>? extraHeaders}) async {
     final url = _buildUrl(endpoint);
@@ -449,9 +540,7 @@ class ApiService {
       http.Response response = await makeRequest();
       if (response.statusCode == 401) {
         response = await makeRequest(); // Retry once
-        if (response.statusCode == 401) {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.login, (route) => false);
-        }
+        return _handleResponse(response, retryAttempted: true);
       }
       return _handleResponse(response);
     } catch (e) {
@@ -459,30 +548,66 @@ class ApiService {
     }
   }
 
-  static Map<String, dynamic> _handleResponse(http.Response response) {
+
+  // static Map<String, dynamic> _handleResponse(http.Response response) {
+  //   try {
+  //     final responseData = json.decode(response.body);
+  //
+  //     if (response.statusCode == 401 || responseData['message'] == 'Unauthenticated.') {
+  //       // Already handled retry outside this method
+  //       if (responseData is Map<String, dynamic>) {
+  //         return {
+  //           ...responseData,
+  //           'status': false,
+  //           'statusCode': response.statusCode,
+  //         };
+  //       } else {
+  //         return {
+  //           'status': false,
+  //           'message': 'Unexpected response format.',
+  //           'statusCode': response.statusCode,
+  //         };
+  //       }
+  //     }
+  //
+  //     if (responseData is Map<String, dynamic>) {
+  //       return {
+  //         ...responseData,
+  //         'statusCode': response.statusCode,
+  //       };
+  //     } else {
+  //       return {
+  //         'status': false,
+  //         'message': 'Unexpected response format.',
+  //         'statusCode': response.statusCode,
+  //       };
+  //     }
+  //   } catch (e) {
+  //     return {
+  //       'status': false,
+  //       'message': 'Failed to parse response: $e',
+  //       'statusCode': response.statusCode,
+  //     };
+  //   }
+  // }
+  static Map<String, dynamic> _handleResponse(http.Response response, {bool retryAttempted = false}) {
     try {
       final responseData = json.decode(response.body);
 
-      if (response.statusCode == 401 || responseData['message'] == 'Unauthenticated.') {
-        // Already handled retry outside this method
-        if (responseData is Map<String, dynamic>) {
-          return {
-            ...responseData,
-            'status': false,
-            'statusCode': response.statusCode,
-          };
-        } else {
-          return {
-            'status': false,
-            'message': 'Unexpected response format.',
-            'statusCode': response.statusCode,
-          };
-        }
+      final isUnauthenticated = response.statusCode == 401 &&
+          responseData is Map<String, dynamic> &&
+          responseData['message'] == 'Unauthenticated.';
+
+      // Only redirect if it is truly unauthenticated and retry already happened
+      if (isUnauthenticated && retryAttempted) {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            Routes.login, (route) => false);
       }
 
       if (responseData is Map<String, dynamic>) {
         return {
           ...responseData,
+          'status': response.statusCode >= 200 && response.statusCode < 300,
           'statusCode': response.statusCode,
         };
       } else {
@@ -500,4 +625,5 @@ class ApiService {
       };
     }
   }
+
 }

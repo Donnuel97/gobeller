@@ -6,64 +6,7 @@ import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController {
-  // Fetch user profile from the API
-  // static Future<Map<String, dynamic>?> fetchUserProfile() async {
-  //   try {
-  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     final String? token = prefs.getString('auth_token');
-  //
-  //     if (token == null) {
-  //       debugPrint("❌ No authentication token found. Please login again.");
-  //       return null;
-  //     }
-  //
-  //     // Print token to console
-  //     debugPrint("🔑 Token for profile fetch: $token");
-  //
-  //     final extraHeaders = {
-  //       'Authorization': 'Bearer $token',
-  //     };
-  //
-  //     final response = await ApiService.getRequest("/profile", extraHeaders: extraHeaders);
-  //
-  //     debugPrint("🔹 User Profile API Response: $response");
-  //
-  //     if (response["status"] == true) {
-  //       final profileData = response["data"];
-  //
-  //       Map<String, dynamic> userProfile = {
-  //         'id': profileData["id"] ?? '',
-  //         'full_name': profileData["full_name"] ?? '',
-  //         'first_name': profileData["first_name"] ?? '',
-  //         'email': profileData["email"] ?? '',
-  //         'username': profileData["username"] ?? '',
-  //         'telephone': profileData["telephone"] ?? '',
-  //         'gender': profileData["gender"] ?? '',
-  //         'date_of_birth': profileData["date_of_birth"] ?? '',
-  //         'physical_address': profileData["physical_address"] ?? '',
-  //         'should_send_sms': profileData["should_send_sms"] ?? false,
-  //         'job_title': profileData["job_title"] ?? '',
-  //         'profile_image_url': profileData["profile_image_url"],
-  //         'status': profileData["status"]?["label"] ?? 'Unknown',
-  //         'organization': profileData["organization"]?["full_name"] ?? 'Unknown Org',
-  //         // Null-safe wallet data
-  //         'wallet_balance': profileData["get_primary_wallet"]?["balance"] ?? "0.00",
-  //         'wallet_number': profileData["get_primary_wallet"]?["wallet_number"] ?? "N/A",
-  //         'wallet_currency': profileData["get_primary_wallet"]?["currency"]?["code"] ?? "N/A",
-  //         'bank_name': profileData["get_primary_wallet"]?["bank"]?["name"] ?? "N/A",
-  //       };
-  //
-  //       debugPrint("✅ Parsed User Profile: $userProfile");
-  //       return userProfile;
-  //     } else {
-  //       debugPrint("⚠️ Error fetching profile: ${response["message"]}");
-  //       return null;
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Profile API Error: $e");
-  //     return null;
-  //   }
-  // }
+
   static Future<Map<String, dynamic>?> fetchUserProfile() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -85,10 +28,11 @@ class ProfileController {
 
       if (response["status"] == true) {
         final profileData = response["data"];
+        await prefs.setString('userProfileRaw', json.encode(profileData)); // Save raw
+
         final walletData = profileData["getPrimaryWallet"];
         final rawKyc = profileData["first_kyc_verification"];
 
-        // 🔍 Normalize KYC: Accept map, or first item in a list if applicable
         Map<String, dynamic>? firstKycVerification;
         if (rawKyc is Map) {
           firstKycVerification = Map<String, dynamic>.from(rawKyc);
@@ -97,7 +41,6 @@ class ProfileController {
         } else {
           firstKycVerification = null;
         }
-
 
         final walletBalance = walletData?["balance"];
         final walletNumber = walletData?["wallet_number"];
@@ -134,7 +77,6 @@ class ProfileController {
           'kyc_image_encoding': firstKycVerification?["imageEncoding"] ?? '',
         };
 
-        await prefs.setString('userProfileRaw', json.encode(profileData));
         debugPrint("✅ Saved raw profile to SharedPreferences.");
         debugPrint("✅ Parsed User Profile: $userProfile");
 
@@ -148,9 +90,6 @@ class ProfileController {
       return null;
     }
   }
-
-
-
 
   // Change Password
   static Future<String> changePassword(
@@ -199,6 +138,36 @@ class ProfileController {
   }
 
   // Fetch Customer Support Details
+  // static Future<Map<String, dynamic>?> fetchCustomerSupportDetails() async {
+  //   try {
+  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //     final String? appId = prefs.getString('appId');
+  //
+  //     if (appId == null || appId.isEmpty) {
+  //       debugPrint("❌ AppID not found in SharedPreferences.");
+  //       return null;
+  //     }
+  //
+  //     final response = await ApiService.getRequest(
+  //       "/organizations/customer-support-details/$appId",
+  //     );
+  //
+  //     debugPrint("📞 Support API Response: $response");
+  //
+  //     if (response["status"] == true) {
+  //       final supportData = response["data"];
+  //       await prefs.setString('customerSupportDetails', json.encode(supportData)); // Save raw
+  //       return supportData;
+  //     } else {
+  //       debugPrint("⚠️ Failed to load support details: ${response["message"]}");
+  //       return null;
+  //     }
+  //   } catch (e) {
+  //     debugPrint("❌ Support API Error: $e");
+  //     return null;
+  //   }
+  // }
+
   static Future<Map<String, dynamic>?> fetchCustomerSupportDetails() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -216,7 +185,41 @@ class ProfileController {
       debugPrint("📞 Support API Response: $response");
 
       if (response["status"] == true) {
-        return response["data"];
+        final supportData = response["data"];
+
+        // Store raw support data
+        await prefs.setString('customerSupportRaw', json.encode(supportData));
+
+        final address = supportData["address"] ?? {};
+        final socialMedia = supportData["social_media"] ?? {};
+
+        Map<String, dynamic> parsedSupportDetails = {
+          'organization_full_name': supportData["organization_full_name"] ?? '',
+          'organization_short_name': supportData["organization_short_name"] ?? '',
+          'organization_description': supportData["organization_description"] ?? '',
+          'public_existing_website': supportData["public_existing_website"] ?? '',
+          'official_email': supportData["official_email"] ?? '',
+          'official_telephone': supportData["official_telephone"] ?? '',
+          'support_hours': supportData["support_hours"] ?? '',
+          'live_chat_url': supportData["live_chat_url"] ?? '',
+          'faq_url': supportData["faq_url"] ?? '',
+          'address': {
+            'physical_address': address["physical_address"] ?? '',
+            'country': address["country"] ?? '',
+          },
+          'social_media': {
+            'twitter': socialMedia["twitter"] ?? '',
+            'facebook': socialMedia["facebook"] ?? '',
+            'instagram': socialMedia["instagram"] ?? '',
+          },
+        };
+
+        // Store parsed data
+        await prefs.setString('customerSupportDetails', json.encode(supportData));
+
+
+        debugPrint("✅ Saved parsed support details to SharedPreferences.");
+        return parsedSupportDetails;
       } else {
         debugPrint("⚠️ Failed to load support details: ${response["message"]}");
         return null;
@@ -226,6 +229,8 @@ class ProfileController {
       return null;
     }
   }
+
+
 
   // Change Transaction PIN
   static Future<String> changeTransactionPin(String currentPin, String newPin) async {
@@ -316,58 +321,6 @@ class ProfileController {
       return null;
     }
   }
-
-  // Link KYC Verification
-  // static Future<String> linkKycVerification({
-  //   required String idType,
-  //   required String idValue,
-  //   required String walletIdentifier,
-  //   required String transactionPin,
-  //   }) async {
-  //   try {
-  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     final String? token = prefs.getString('auth_token');
-  //     final String appId = prefs.getString('appId') ?? '';
-  //
-  //     if (token == null) {
-  //       debugPrint("❌ No authentication token found. Please login again.");
-  //       return "Authentication required. Please log in again.";
-  //     }
-  //
-  //     debugPrint("🔑 Token for link KYC: $token");
-  //
-  //     final extraHeaders = {
-  //       'Authorization': 'Bearer $token',
-  //       'Accept': 'application/json',
-  //       'Content-Type': 'application/json',
-  //       'AppID': appId,
-  //     };
-  //
-  //     final Map<String, dynamic> body = {
-  //       "id_type": idType,
-  //       "id_value": idValue,
-  //       "customer_wallet_number_or_uuid": walletIdentifier,
-  //       "transaction_pin": transactionPin,
-  //     };
-  //
-  //     final response = await ApiService.postRequest(
-  //       "/customers/kyc-verifications/link/verified",
-  //       body,
-  //       extraHeaders: extraHeaders,
-  //     );
-  //
-  //     debugPrint("🔹 Link KYC API Response: $response");
-  //
-  //     if (response["status"] == true) {
-  //       return "KYC linked successfully.";
-  //     } else {
-  //       return response["message"] ?? "Failed to link KYC.";
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Link KYC API Error: $e");
-  //     return "An error occurred while linking KYC.";
-  //   }
-  // }
 
   static Future<Map<String, dynamic>> linkKycVerification({
     required String idType,
@@ -522,7 +475,4 @@ class ProfileController {
       return {};
     }
   }
-
-
-
 }

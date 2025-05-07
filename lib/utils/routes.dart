@@ -4,6 +4,8 @@ import 'package:gobeller/pages/registration/registration.dart';
 import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:gobeller/pages/success/transaction_history.dart';
 import 'package:gobeller/pages/welcome/welcome_page.dart';
+import 'package:gobeller/pages/welcome/SplashScreen.dart';
+
 import 'package:gobeller/pages/profile/profile_page.dart';
 import 'package:gobeller/pages/wallet/wallet_page.dart';
 import 'package:gobeller/pages/cards/virtual_card_page.dart';
@@ -14,6 +16,12 @@ import 'package:gobeller/pages/quick_action/cable_tv_page.dart';
 import 'package:gobeller/pages/quick_action/electric_meter_page.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_wallet.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_bank.dart';
+
+import 'package:gobeller/pages/coming_soon/corp_soon.dart';
+import 'package:gobeller/pages/coming_soon/fx_soon.dart';
+import 'package:gobeller/pages/coming_soon/loan_soon.dart';
+
+import 'package:gobeller/pages/corporate_account/corporate_registration.dart';
 
 import 'package:gobeller/pages/success_screens/registration_success_screen/regSuccess.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/airtime_success.dart';
@@ -51,11 +59,18 @@ class Routes {
   static const String cable_result = '/cable_result';
   static const String card_details = '/card_details';
 
+  static const String coming_soon = '/coming_soon';
+  static const String fx_soon = '/fx_soon';
+  static const String loan_soon = '/loan_soon';
+
+  static const String corporate = '/corporate';
+  static const String splash = '/splash';
 
 
 
   static Map<String, Widget Function(BuildContext)> routes = {
     initial: (context) => const WelcomePage(),
+    splash: (context) => const SplashScreen(),
     login: (context) => const LoginPage(),
     register: (context) => RegistrationPage(),
     dashboard: (context) => const DashboardPage(),
@@ -76,6 +91,10 @@ class Routes {
     electricity_result: (context) => const ElectricityResultPage(),
     bank_result: (context) => const WalletTransferResultPage(),
     cable_result: (context) => const CableTVResultPage(),
+    coming_soon: (context) => const  UpgradeScreen(),
+    loan_soon: (context) => const  LoanUpgradeScreen(),
+    fx_soon: (context) => const  FxUpgradeScreen(),
+    corporate: (context) => const  CorporateAccountRegistrationPage(),
     card_details: (context) { final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;return CardDetailsPage(card: card);},
   };
 }

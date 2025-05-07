@@ -4,6 +4,8 @@ import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/login_controller.dart'; // ✅ Imported
 import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/utils/biometric_helper.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordObscured = true;
   bool _isLoading = false;
   bool _hideUsernameField = false;
+  bool _isBiometricLoading = false;
 
   String? _storedUsername;
   String? _displayName;
@@ -32,7 +35,67 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _loadPrimaryColorAndLogo();
     _checkStoredUsername();
+    _autoBiometricLogin(); // <- Call here
   }
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  void _hideLoadingDialog() {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  Future<void> _autoBiometricLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasUsername = prefs.getString('saved_username') != null;
+    final hasPassword = prefs.getString('saved_password') != null;
+
+    if (hasUsername && hasPassword) {
+      setState(() => _isBiometricLoading = true);
+      _showLoadingDialog();
+
+      final didAuth = await BiometricHelper.authenticate();
+
+      if (didAuth && mounted) {
+        final result = await _loginController.loginUser(useStoredCredentials: true);
+
+        _hideLoadingDialog();
+
+        if (!mounted) return;
+
+        if (result['success'] == true) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const DashboardPage()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
+          );
+        }
+      } else {
+        _hideLoadingDialog();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric authentication failed')),
+          );
+        }
+      }
+
+      if (mounted) setState(() => _isBiometricLoading = false);
+    }
+  }
+
+
+
+
 
   Future<void> _loadPrimaryColorAndLogo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,7 +198,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  @override
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +298,52 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // ✅ Biometric login button (conditionally shown)
+                    if (_storedUsername != null)
+                      Center(
+                        child: IconButton(
+                          icon: const Icon(Icons.fingerprint, size: 40, color: Colors.blueGrey),
+                          onPressed: _isBiometricLoading
+                              ? null
+                              : () async {
+                            setState(() => _isBiometricLoading = true);
+                            _showLoadingDialog();
+
+                            final didAuth = await BiometricHelper.authenticate();
+
+                            if (didAuth) {
+                              final result = await _loginController.loginUser(useStoredCredentials: true);
+
+                              if (!mounted) return;
+
+                              _hideLoadingDialog();
+
+                              if (result['success'] == true) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DashboardPage()),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
+                                );
+                              }
+                            } else {
+                              _hideLoadingDialog();
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Fingerprint authentication failed')),
+                              );
+                            }
+
+                            if (mounted) setState(() => _isBiometricLoading = false);
+                          },
+                        ),
+                      ),
+
+
+                    const SizedBox(height: 16),
+
                     TextButton(
                       onPressed: () =>
                           Navigator.pushNamed(context, '/register'),
@@ -242,6 +351,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
+
 
                 if (_hideUsernameField)
                   TextButton(

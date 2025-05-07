@@ -49,6 +49,7 @@ dependencies:
   path_provider: ^2.0.9 # For saving the icon locally
   local_auth: ^2.3.0
   video_player: ^2.9.5
+  dropdown_search: ^5.0.6
 
 dev_dependencies:
   flutter_test:
@@ -58,7 +59,7 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logo.png" # Your logo file path
+  image_path: "assets/Lumi/logo.png" # Your logo file path
   adaptive_icon_background:
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -81,9 +82,13 @@ flutter:
 
   assets:
     #    - assets/logo.png
-    - assets/logo.png
+    - assets/Lumi/logo.png
+    - assets/Lumi/bg1.png
+    - assets/Lumi/bg2.png
+    - assets/Lumi/bg3.png
+    - assets/icon.jpg
     - assets/logo_3.png
-    - assets/logo_2.png
+    - assets/Lumi/logo_2.jpg
     - assets/google.png
     - assets/airtime_data/mtn-logo.svg
     - assets/airtime_data/airtel-logo.svg
@@ -95,7 +100,7 @@ flutter:
     - assets/cable/dstv.png
     - assets/male.png
     - assets/female.png
-    - assets/videos/welcome_bg.mp4
+    - assets/Lumi/splash.jpg
 
 #dev_dependencies:
 #  flutter_test:

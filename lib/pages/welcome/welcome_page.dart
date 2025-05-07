@@ -101,7 +101,7 @@ class _WelcomePageState extends State<WelcomePage> {
               // Dark overlay with tertiary color and fade animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 500),
-                color: tertiaryColor.withOpacity(0.8),
+                color: tertiaryColor.withOpacity(1),
               ),
 
               // Content

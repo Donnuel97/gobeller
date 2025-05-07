@@ -20,9 +20,6 @@ class _ProfilePageState extends State<ProfilePage> {
   // List of available ID Types that are not yet linked in KYC verifications
   List<String> _availableIdTypes = [];
 
-  // Selected ID Type (initially set to 'nin')
-  // String? _selectedIdType = 'nin'; // Default value, can be changed based on your logic
-
   Map<String, dynamic>? userProfile;
   Map<String, dynamic>? supportDetails;
   String? _selectedIdType;
@@ -40,33 +37,68 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadCachedData();
   }
 
-  Future<void> _loadProfile() async {
-    try {
-      final results = await Future.wait([
-        ProfileController.fetchUserProfile(),
-        ProfileController.fetchCustomerSupportDetails(),
-      ]);
+  Future<void> _loadCachedData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      if (mounted) {
-        setState(() {
-          userProfile = results[0];
-          supportDetails = results[1];
-          isLoading = false;
-        });
+    final String? profileJson = prefs.getString('userProfileRaw');
+    final String? supportJson = prefs.getString('customerSupportDetails'); // ✅ use parsed key
+
+    if (profileJson != null) {
+      final Map<String, dynamic> parsed = json.decode(profileJson);
+      final walletData = parsed["getPrimaryWallet"];
+      final rawKyc = parsed["first_kyc_verification"];
+
+      Map<String, dynamic>? firstKycVerification;
+      if (rawKyc is Map) {
+        firstKycVerification = Map<String, dynamic>.from(rawKyc);
+      } else if (rawKyc is List && rawKyc.isNotEmpty && rawKyc[0] is Map) {
+        firstKycVerification = Map<String, dynamic>.from(rawKyc[0]);
       }
-    } catch (e, stack) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-      debugPrint('❌ Error loading profile: $e');
-      debugPrintStack(stackTrace: stack);
+
+      setState(() {
+        userProfile = {
+          'id': parsed["id"] ?? '',
+          'full_name': parsed["full_name"] ?? '',
+          'first_name': parsed["first_name"] ?? '',
+          'email': parsed["email"] ?? '',
+          'username': parsed["username"] ?? '',
+          'telephone': parsed["telephone"] ?? '',
+          'gender': parsed["gender"] ?? '',
+          'date_of_birth': parsed["date_of_birth"] ?? '',
+          'physical_address': parsed["physical_address"] ?? '',
+          'should_send_sms': parsed["should_send_sms"] ?? false,
+          'job_title': parsed["job_title"] ?? '',
+          'profile_image_url': parsed["profile_image_url"],
+          'status': parsed["status"]?["label"] ?? 'Unknown',
+          'organization': parsed["organization"]?["full_name"] ?? 'Unknown Org',
+          'wallet_balance': walletData?["balance"] ?? "0.00",
+          'wallet_number': walletData?["wallet_number"] ?? "N/A",
+          'wallet_currency': walletData?["currency"]?["code"] ?? "N/A",
+          'bank_name': walletData?["bank"]?["name"] ?? "N/A",
+          'has_wallet': walletData != null,
+          'first_kyc_verification': firstKycVerification ?? {},
+          'kyc_image_encoding': firstKycVerification?["imageEncoding"] ?? '',
+        };
+      });
     }
+
+    if (supportJson != null) {
+      final Map<String, dynamic> parsedSupport = json.decode(supportJson);
+      setState(() {
+        supportDetails = parsedSupport;
+      });
+    } else {
+      debugPrint("❌ No cached support details found.");
+    }
+
+    setState(() {
+      isLoading = false;
+    });
   }
+
 
 
   ImageProvider _getGenderBasedImage(String? gender) {
@@ -141,15 +173,16 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
 
                   const SizedBox(height: 20),
-
+                  _kycSettingsSection(),
+                  const SizedBox(height: 10),
 
 
                   // 🟢 Personal Information Section
                   _buildProfileSection("Personal Information", [
-                    _buildProfileItem(Icons.person, "Username", userProfile!['username']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.male, "Gender", userProfile!['gender']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.calendar_month, "Date of Birth", userProfile!['date_of_birth']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.home, "Address", userProfile!['physical_address']?.toString() ?? "N/A"),
+                    _buildProfileItem(Icons.person, "Username", userProfile!['username'] ?? "N/A"),
+                    _buildProfileItem(Icons.male, "Gender", userProfile!['gender'] ?? "N/A"),
+                    _buildProfileItem(Icons.calendar_month, "Date of Birth", userProfile!['date_of_birth'] ?? "N/A"),
+                    _buildProfileItem(Icons.home, "Address", userProfile!['physical_address'] ?? "N/A"),
                     _buildProfileItem(
                       Icons.chat_bubble,
                       "SMS enabled",
@@ -164,26 +197,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           ? Colors.red
                           : Colors.grey,
                     ),
-                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status'])
+                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
                   ]),
 
                   const SizedBox(height: 10),
 
-
-
-
-
-
-                  // // 💰 Wallet Information Section
-                  // _buildProfileSection("Wallet Information", [
-                  //   _buildProfileItem(Icons.wallet, "Wallet Number", userProfile!['wallet_number']),
-                  //   _buildProfileItem(
-                  //     Icons.attach_money,
-                  //     "Wallet Balance",
-                  //     "${userProfile!['wallet_currency']} ${double.parse(userProfile!['wallet_balance'].toString()).toStringAsFixed(2)}",
-                  //   ),
-                  //   _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
-                  // ]),
 
                   const SizedBox(height: 30),
 
@@ -203,15 +221,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       _buildProfileItem(Icons.public, "Country", supportDetails!['address']?['country'] ?? "N/A"),
                     ]),
 
-                  // // 📞 Contact Information Section
-                  // _buildProfileSection("Contact Information", [
-                  //   _buildProfileItem(Icons.email, "Email", userProfile!['email']),
-                  //   _buildProfileItem(Icons.phone, "Phone", userProfile!['telephone']),
-                  //   _buildProfileItem(Icons.business, "Organization", userProfile!['organization']),
-                  // ]),
-                  //
-                  // const SizedBox(height: 10),
-                  // Logout Button
+
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -330,6 +340,44 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: _showChangePinDialog,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _kycSettingsSection() {
+    return FutureBuilder<List<Map<String, dynamic>>?>(
+      future: KycVerificationController.fetchKycVerifications(),
+      builder: (context, snapshot) {
+        final kycData = snapshot.data ?? [];
+
+        // Extract all completed document types in uppercase
+        final completedTypes = kycData
+            .map((e) => (e['documentType'] as String).toUpperCase())
+            .toSet();
+
+        final bool isKycComplete = completedTypes.containsAll({'BVN', 'NIN'});
+
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 5,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'KYC Settings',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const Divider(),
+
                 Stack(
                   children: [
                     ListTile(
@@ -456,7 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Center(
                     child: Text(
-                      "Link KYC Document",
+                      "Link KYC Identity ID",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -998,4 +1046,3 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-
