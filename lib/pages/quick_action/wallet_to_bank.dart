@@ -119,12 +119,18 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white, backgroundColor: Colors.red, // White text color for Cancel
+                        ),
                         child: const Text("Cancel"),
                       ),
                       Consumer<WalletToBankTransferController>(
                         builder: (context, controller, child) {
                           return ElevatedButton(
                             onPressed: controller.isProcessing || isLoading ? null : _confirmTransfer,
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white, backgroundColor: Colors.green, // White text color for Proceed
+                            ),
                             child: controller.isProcessing || isLoading
                                 ? const SizedBox(
                               width: 20,
@@ -136,6 +142,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                         },
                       ),
                     ],
+
                   ),
                 ],
               ),
@@ -272,7 +279,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
             const SizedBox(height: 12),
             Expanded(
               child: beneficiaries.isEmpty
-                  ? const Center(child: Text("No saved beneficiaries."))
+                  ? const Center(child: Text("You have no beneficiaries saved.")) // Updated text here
                   : ListView.separated(
                 itemCount: beneficiaries.length,
                 separatorBuilder: (_, __) => const Divider(),
@@ -307,6 +314,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
       ),
     );
   }
+
 
 
 
@@ -396,51 +404,6 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                     const SizedBox(height: 2),
 
 
-                    const Text("Select Bank"),
-                    DropdownSearch<Map<String, String>>(
-                      items: controller.banks.map<Map<String, String>>((bank) => {
-                        "bank_code": bank["bank_code"].toString(),
-                        "bank_name": bank["bank_name"].toString(),
-                      }).toList(),
-                      itemAsString: (bank) => bank["bank_name"]!,
-                      selectedItem: controller.banks
-                          .map<Map<String, String>>((bank) => {
-                        "bank_code": bank["bank_code"].toString(),
-                        "bank_name": bank["bank_name"].toString(),
-                      })
-                          .firstWhere(
-                            (bank) => bank["bank_code"] == selectedBank,
-                        orElse: () => {"bank_code": "", "bank_name": "Select Bank"},
-                      ),
-                      dropdownDecoratorProps: const DropDownDecoratorProps(
-                        dropdownSearchDecoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          // labelText: "Select Bank",
-                        ),
-                      ),
-
-                      onChanged: (value) {
-                        setState(() {
-                          selectedBank = value?["bank_code"];
-                          selectedBankId = controller.banks.firstWhere(
-                                (bank) => bank['bank_code'].toString() == selectedBank,
-                            orElse: () => {'id': null},
-                          )['id'];
-                        });
-                      },
-
-                      validator: (value) => value == null ? "Please select a bank" : null,
-                      popupProps: const PopupProps.menu(
-                        showSearchBox: true,
-                        searchFieldProps: TextFieldProps(
-                          decoration: InputDecoration(labelText: "Search Bank"),
-                        ),
-                      ),
-                    ),
-
-
-                    const SizedBox(height: 16),
-
                     const Text("Account Number"),
                     TextFormField(
                       controller: _accountNumberController,
@@ -480,6 +443,62 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
 
 
                     ),
+                    const SizedBox(height: 16),
+                    const Text("Select Bank"),
+                    DropdownSearch<Map<String, String>>(
+                      items: controller.banks.map<Map<String, String>>((bank) => {
+                        "bank_code": bank["bank_code"].toString(),
+                        "bank_name": bank["bank_name"].toString(),
+                      }).toList(),
+                      itemAsString: (bank) => bank["bank_name"]!,
+                      selectedItem: controller.banks
+                          .map<Map<String, String>>((bank) => {
+                        "bank_code": bank["bank_code"].toString(),
+                        "bank_name": bank["bank_name"].toString(),
+                      })
+                          .firstWhere(
+                            (bank) => bank["bank_code"] == selectedBank,
+                        orElse: () => {"bank_code": "", "bank_name": "Select Bank"},
+                      ),
+                      dropdownDecoratorProps: const DropDownDecoratorProps(
+                        dropdownSearchDecoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          // labelText: "Select Bank",
+                        ),
+                      ),
+
+                      onChanged: (value) {
+                        setState(() {
+                          selectedBank = value?["bank_code"];
+                          selectedBankId = controller.banks.firstWhere(
+                                (bank) => bank['bank_code'].toString() == selectedBank,
+                            orElse: () => {'id': null},
+                          )['id']?.toString();
+                        });
+
+                        // ✅ Trigger verification if account number is already 10 digits
+                        final accountNumber = _accountNumberController.text;
+                        if (accountNumber.length == 10 && selectedBankId != null && selectedBankId != 'Unknown') {
+                          controller.verifyBankAccount(
+                            accountNumber: accountNumber,
+                            bankId: selectedBankId!,
+                          );
+                        }
+                      },
+
+
+
+                      validator: (value) => value == null ? "Please select a bank" : null,
+                      popupProps: const PopupProps.menu(
+                        showSearchBox: true,
+                        searchFieldProps: TextFieldProps(
+                          decoration: InputDecoration(labelText: "Search Bank"),
+                        ),
+                      ),
+                    ),
+
+
+
                     if (showSuggestions)
                       Container(
                         constraints: const BoxConstraints(maxHeight: 150),
@@ -503,8 +522,15 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                             final suggestion = filteredSuggestions[index];
                             return ListTile(
                               dense: true,
-                              title: Text(suggestion['beneficiary_name'] ?? suggestion['account_number']),
-                              subtitle: Text("${suggestion['bank_name']} - ${suggestion['account_number']}"),
+                              title: Text(
+                                suggestion['beneficiary_name'] ?? suggestion['account_number'],
+                                style: TextStyle(color: Color(0xFFEB6D00)),
+                              ),
+                              subtitle: Text(
+                                "${suggestion['bank_name']} - ${suggestion['account_number']}",
+                                style: TextStyle(color: Color(0xFFEB6D00)),
+                              ),
+
                               onTap: () {
                                 setState(() {
                                   _accountNumberController.text = suggestion['account_number'];

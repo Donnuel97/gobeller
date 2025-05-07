@@ -64,7 +64,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
       builder: (context) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.7,
+          initialChildSize: 0.8,
           minChildSize: 0.4,
           maxChildSize: 0.95,
           builder: (context, scrollController) {
@@ -190,13 +190,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
                     Row(
                       children: [
-                        // Expanded(
-                        //   child: ElevatedButton(
-                        //     onPressed: () => Navigator.pop(context),
-                        //     child: const Text("Close Receipt"),
-                        //   ),
-                        // ),
-                        // const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _downloadTransactionAsPDF(transaction),
@@ -440,117 +433,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   }
 
 
-
-
-  // Function to generate PDF and download it
-  // Future<void> _downloadTransactionAsPDF(Map<String, dynamic> transaction) async {
-  //   final pdf = pw.Document();
-  //
-  //   // Fetch customer support details from SharedPreferences
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final customerSupportData = prefs.getString('customerSupportData');
-  //   final customerSupport = customerSupportData != null
-  //       ? jsonDecode(customerSupportData)['data']
-  //       : null;
-  //
-  //   // Load the logo from the assets folder
-  //   Uint8List? logoImageBytes;
-  //   try {
-  //     logoImageBytes = await rootBundle.load('assets/logo.png').then((value) => value.buffer.asUint8List());
-  //     print("Logo image loaded from assets successfully");
-  //   } catch (e) {
-  //     print("Error loading logo image from assets: $e");
-  //   }
-  //
-  //   // Add a page with the transaction details
-  //   pdf.addPage(
-  //     pw.Page(
-  //       build: (pw.Context context) {
-  //         return pw.Column(
-  //           crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //           children: [
-  //             // Header Section: Logo centralized in the page
-  //             pw.Center(
-  //               child: logoImageBytes != null
-  //                   ? pw.Image(pw.MemoryImage(logoImageBytes), width: 100, height: 100, fit: pw.BoxFit.contain)
-  //                   : pw.SizedBox(width: 100),
-  //             ),
-  //             pw.SizedBox(height: 20), // Space after logo
-  //
-  //             // Title: Transaction Receipt
-  //             pw.Center(
-  //               child: pw.Text(
-  //                 'Transaction Receipt',
-  //                 style: pw.TextStyle(
-  //                   fontSize: 26,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.black,
-  //                 ),
-  //               ),
-  //             ),
-  //             pw.SizedBox(height: 30), // Space after the title
-  //             pw.Center(
-  //               child: pw.Text(
-  //                 transaction["status"]["label"],
-  //                 style: pw.TextStyle(
-  //                   fontSize: 26,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.black,
-  //                 ),
-  //               ),
-  //             ),
-  //             pw.SizedBox(height: 30),
-  //             // Transaction Details Section (with no borders in the table)
-  //             pw.Table(
-  //               children: [
-  //                 _buildTableRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
-  //                 _buildTableRow("Date", transaction["created_at"] ?? "Unknown"),
-  //                 _buildTableRow("Description", transaction["description"] ?? "No Description"),
-  //                 _buildTableRow("Transaction Reference", transaction["reference_number"] ?? "N/A"),
-  //               ],
-  //             ),
-  //             pw.SizedBox(height: 20), // Space after the transaction table
-  //
-  //             // Customer Support Section (below transaction details)
-  //             if (customerSupport != null) ...[
-  //               pw.Divider(),
-  //               pw.SizedBox(height: 10),
-  //               pw.Text(
-  //                 'Customer Support:',
-  //                 style: pw.TextStyle(
-  //                   fontSize: 14,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.black,
-  //                 ),
-  //               ),
-  //               pw.Text('Email: ${customerSupport['official_email']}'),
-  //               pw.Text('Phone: ${customerSupport['official_telephone']}'),
-  //               pw.Text('Website: ${customerSupport['public_existing_website']}'),
-  //               if (customerSupport['address'] != null && customerSupport['address']['country'] != null)
-  //                 pw.Text('Country: ${customerSupport['address']['country']}'),
-  //               pw.SizedBox(height: 20),
-  //             ],
-  //
-  //             // Footer Section: Date and time the PDF was generated
-  //             pw.Align(
-  //               alignment: pw.Alignment.centerRight,
-  //               child: pw.Text(
-  //                 'Generated on ${DateFormat.yMMMd().format(DateTime.now())}',
-  //                 style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-  //               ),
-  //             ),
-  //           ],
-  //         );
-  //       },
-  //     ),
-  //   );
-  //
-  //   // Save the PDF and print it or show a preview
-  //   await Printing.layoutPdf(
-  //     onLayout: (PdfPageFormat format) async => pdf.save(),
-  //   );
-  // }
-
   Future<void> _downloadTransactionAsPDF(Map<String, dynamic> transaction) async {
     final pdf = pw.Document();
     final prefs = await SharedPreferences.getInstance();
@@ -650,21 +532,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
               _buildInfoRow("Amount", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
               _buildInfoRow("Fee", "${transaction["user_wallet"]["currency"]["code"]}${(double.tryParse(transaction["org_charge_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
-              // _buildInfoRow(
-              //   "Fee",
-              //   transaction["org_charge_amount"] == "0" || transaction["org_charge_amount"] == null
-              //       ? pw.RichText(
-              //     text: pw.TextSpan(
-              //       text: "₦10.00 ",
-              //       style: pw.TextStyle(decoration: pw.TextDecoration.lineThrough, color: PdfColors.grey),
-              //       children: [
-              //         pw.TextSpan(text: " ₦0.00", style: pw.TextStyle(decoration: pw.TextDecoration.none, color: PdfColors.black))
-              //       ],
-              //     ),
-              //   )
-              //       : "₦${transaction["fee"]}",
-              // ),
-              // _buildInfoRow("Amount Paid", "₦${(double.tryParse(transaction["user_amount"] ?? "0.00") ?? 0.00).toStringAsFixed(2)}"),
 
               pw.SizedBox(height: 20),
 
