@@ -32,6 +32,15 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
         selectedPlan != null &&
         phoneController.text.trim().isNotEmpty;
   }
+
+  bool get _isFormValid {
+    return selectedNetwork != null &&
+        selectedPlan != null &&
+        phoneController.text.trim().isNotEmpty &&
+        pinController.text.trim().length == 4;
+  }
+
+
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
 
@@ -49,6 +58,7 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
     super.initState();
     _loadPrimaryColor();
     phoneController.addListener(_onInputChanged);
+    pinController.addListener(_onInputChanged); // Add this line
   }
   void _onInputChanged() {
     setState(() {}); // Triggers rebuild so _canAccessPinField re-evaluates
@@ -76,6 +86,7 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
   @override
   void dispose() {
     phoneController.removeListener(_onInputChanged);
+    pinController.removeListener(_onInputChanged); // Add this line
     phoneController.dispose();
     pinController.dispose();
     super.dispose();
@@ -295,7 +306,8 @@ class _DataPurchasePageState extends State<DataPurchasePage> {
 
             // **Purchase Button**
             ElevatedButton(
-              onPressed: isProcessingPurchase ? null : _purchaseData,
+              onPressed: (!isProcessingPurchase && _isFormValid) ? _purchaseData : null,
+
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryColor, // HEX color for background
                 foregroundColor: Colors.white, // Text color set to white

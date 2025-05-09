@@ -20,9 +20,6 @@ class _ProfilePageState extends State<ProfilePage> {
   // List of available ID Types that are not yet linked in KYC verifications
   List<String> _availableIdTypes = [];
 
-  // Selected ID Type (initially set to 'nin')
-  // String? _selectedIdType = 'nin'; // Default value, can be changed based on your logic
-
   Map<String, dynamic>? userProfile;
   Map<String, dynamic>? supportDetails;
   String? _selectedIdType;
@@ -40,33 +37,68 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadCachedData();
   }
 
-  Future<void> _loadProfile() async {
-    try {
-      final results = await Future.wait([
-        ProfileController.fetchUserProfile(),
-        ProfileController.fetchCustomerSupportDetails(),
-      ]);
+  Future<void> _loadCachedData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      if (mounted) {
-        setState(() {
-          userProfile = results[0];
-          supportDetails = results[1];
-          isLoading = false;
-        });
+    final String? profileJson = prefs.getString('userProfileRaw');
+    final String? supportJson = prefs.getString('customerSupportDetails'); // ✅ use parsed key
+
+    if (profileJson != null) {
+      final Map<String, dynamic> parsed = json.decode(profileJson);
+      final walletData = parsed["getPrimaryWallet"];
+      final rawKyc = parsed["first_kyc_verification"];
+
+      Map<String, dynamic>? firstKycVerification;
+      if (rawKyc is Map) {
+        firstKycVerification = Map<String, dynamic>.from(rawKyc);
+      } else if (rawKyc is List && rawKyc.isNotEmpty && rawKyc[0] is Map) {
+        firstKycVerification = Map<String, dynamic>.from(rawKyc[0]);
       }
-    } catch (e, stack) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-      debugPrint('❌ Error loading profile: $e');
-      debugPrintStack(stackTrace: stack);
+
+      setState(() {
+        userProfile = {
+          'id': parsed["id"] ?? '',
+          'full_name': parsed["full_name"] ?? '',
+          'first_name': parsed["first_name"] ?? '',
+          'email': parsed["email"] ?? '',
+          'username': parsed["username"] ?? '',
+          'telephone': parsed["telephone"] ?? '',
+          'gender': parsed["gender"] ?? '',
+          'date_of_birth': parsed["date_of_birth"] ?? '',
+          'physical_address': parsed["physical_address"] ?? '',
+          'should_send_sms': parsed["should_send_sms"] ?? false,
+          'job_title': parsed["job_title"] ?? '',
+          'profile_image_url': parsed["profile_image_url"],
+          'status': parsed["status"]?["label"] ?? 'Unknown',
+          'organization': parsed["organization"]?["full_name"] ?? 'Unknown Org',
+          'wallet_balance': walletData?["balance"] ?? "0.00",
+          'wallet_number': walletData?["wallet_number"] ?? "N/A",
+          'wallet_currency': walletData?["currency"]?["code"] ?? "N/A",
+          'bank_name': walletData?["bank"]?["name"] ?? "N/A",
+          'has_wallet': walletData != null,
+          'first_kyc_verification': firstKycVerification ?? {},
+          'kyc_image_encoding': firstKycVerification?["imageEncoding"] ?? '',
+        };
+      });
     }
+
+    if (supportJson != null) {
+      final Map<String, dynamic> parsedSupport = json.decode(supportJson);
+      setState(() {
+        supportDetails = parsedSupport;
+      });
+    } else {
+      debugPrint("❌ No cached support details found.");
+    }
+
+    setState(() {
+      isLoading = false;
+    });
   }
+
 
 
   ImageProvider _getGenderBasedImage(String? gender) {
@@ -147,10 +179,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   // 🟢 Personal Information Section
                   _buildProfileSection("Personal Information", [
-                    _buildProfileItem(Icons.person, "Username", userProfile!['username']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.male, "Gender", userProfile!['gender']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.calendar_month, "Date of Birth", userProfile!['date_of_birth']?.toString() ?? "N/A"),
-                    _buildProfileItem(Icons.home, "Address", userProfile!['physical_address']?.toString() ?? "N/A"),
+                    _buildProfileItem(Icons.person, "Username", userProfile!['username'] ?? "N/A"),
+                    _buildProfileItem(Icons.male, "Gender", userProfile!['gender'] ?? "N/A"),
+                    _buildProfileItem(Icons.calendar_month, "Date of Birth", userProfile!['date_of_birth'] ?? "N/A"),
+                    _buildProfileItem(Icons.home, "Address", userProfile!['physical_address'] ?? "N/A"),
                     _buildProfileItem(
                       Icons.chat_bubble,
                       "SMS enabled",
@@ -165,7 +197,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ? Colors.red
                           : Colors.grey,
                     ),
-                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status'])
+                    _buildProfileItem(Icons.verified, "Account Status", userProfile!['status']),
                   ]),
 
                   const SizedBox(height: 10),
@@ -308,54 +340,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: _showChangePinDialog,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
-                // Stack(
-                //   children: [
-                //     ListTile(
-                //       leading: Icon(
-                //         isKycComplete ? Icons.check_circle : Icons.link,
-                //         color: isKycComplete ? Colors.green : Colors.blue,
-                //       ),
-                //       title: Text(
-                //         isKycComplete ? 'KYC Completed' : 'Link KYC',
-                //         style: const TextStyle(fontWeight: FontWeight.w500),
-                //       ),
-                //       trailing: _kycRequestLoading
-                //           ? const SizedBox(
-                //         width: 20,
-                //         height: 20,
-                //         child: CircularProgressIndicator(strokeWidth: 2),
-                //       )
-                //           : const Icon(Icons.chevron_right),
-                //       onTap: isKycComplete
-                //           ? null
-                //           : () async {
-                //         setState(() {
-                //           _kycRequestLoading = true;
-                //         });
-                //
-                //         final profileData = await ProfileController.fetchUserProfile();
-                //         final walletsData = await ProfileController.fetchWallets();
-                //
-                //         setState(() {
-                //           _kycRequestLoading = false;
-                //         });
-                //
-                //         if (profileData != null && walletsData?['data'] is List) {
-                //           _showLinkKycDialog(
-                //             Map<String, dynamic>.from(profileData),
-                //             List<Map<String, dynamic>>.from(walletsData['data']),
-                //           );
-                //         } else {
-                //           ScaffoldMessenger.of(context).showSnackBar(
-                //             const SnackBar(content: Text('Unable to locate wallet, Please create a wallet')),
-                //           );
-                //         }
-                //       },
-                //       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                //     ),
-                //   ],
-                // ),
-
               ],
             ),
           ),
@@ -366,13 +350,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _kycSettingsSection() {
     return FutureBuilder<List<Map<String, dynamic>>?>(
-      future: KycVerificationController.fetchKycVerifications(),
+      future: _loadCachedKycData(),
       builder: (context, snapshot) {
         final kycData = snapshot.data ?? [];
 
         // Extract all completed document types in uppercase
         final completedTypes = kycData
-            .map((e) => (e['documentType'] as String).toUpperCase())
+            .map((e) => (e['documentType'] as String?)?.toUpperCase())
+            .whereType<String>()
             .toSet();
 
         final bool isKycComplete = completedTypes.containsAll({'BVN', 'NIN'});
@@ -393,7 +378,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const Divider(),
-
                 Stack(
                   children: [
                     ListTile(
@@ -415,6 +399,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       onTap: isKycComplete
                           ? null
                           : () async {
+                        if (!mounted) return;
                         setState(() {
                           _kycRequestLoading = true;
                         });
@@ -422,6 +407,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         final profileData = await ProfileController.fetchUserProfile();
                         final walletsData = await ProfileController.fetchWallets();
 
+                        if (!mounted) return;
                         setState(() {
                           _kycRequestLoading = false;
                         });
@@ -432,6 +418,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             List<Map<String, dynamic>>.from(walletsData['data']),
                           );
                         } else {
+                          if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Unable to locate wallet, Please create a wallet')),
                           );
@@ -441,7 +428,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ],
                 ),
-
               ],
             ),
           ),
@@ -449,6 +435,25 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
+
+// Helper to load cached KYC data
+  Future<List<Map<String, dynamic>>?> _loadCachedKycData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final kycString = prefs.getString('cached_kyc_data');
+
+    if (kycString != null) {
+      try {
+        final decoded = json.decode(kycString);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      } catch (e) {
+        debugPrint('Error decoding cached KYC data: $e');
+      }
+    }
+    return [];
+  }
+
 
 
   // Show Link KYC Dialog
@@ -640,11 +645,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
                           showSnackbar(result['message'] ?? 'Operation completed');
 
+                          if (result['success'] == true) {
+                            final updatedVerifications = await KycVerificationController.fetchKycVerifications();
+                            if (updatedVerifications != null) {
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString('cached_kyc_data', json.encode(updatedVerifications));
+                            }
+                          }
+
                           setState(() {
                             _loading = false;
                           });
 
                           Navigator.of(context).pop();
+
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor,
@@ -1062,4 +1076,3 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-

@@ -6,6 +6,8 @@ import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gobeller/utils/biometric_helper.dart';
 
+import '../../controller/kyc_controller.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -164,6 +166,14 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_username', username);
 
+      // ✅ Call KYC fetch and cache here
+      final kycData = await KycVerificationController.fetchKycVerifications();
+      if (kycData != null) {
+        debugPrint("✅ KYC data successfully fetched and cached.");
+      } else {
+        debugPrint("⚠️ Failed to fetch or cache KYC data.");
+      }
+
       Future.delayed(const Duration(milliseconds: 1000), () {
         Navigator.pushReplacement(
           context,
@@ -178,6 +188,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = false);
   }
+
 
   Future<void> _switchAccount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -316,14 +327,26 @@ class _LoginPageState extends State<LoginPage> {
 
                               if (!mounted) return;
 
-                              _hideLoadingDialog();
-
                               if (result['success'] == true) {
+                                // ✅ Fetch and save KYC verifications
+                                final kycData = await KycVerificationController.fetchKycVerifications();
+                                if (kycData != null) {
+                                  final prefs = await SharedPreferences.getInstance();
+                                  await prefs.setString('cached_kyc_data', json.encode(kycData));
+                                  debugPrint("✅ Biometric: KYC data cached successfully.");
+                                } else {
+                                  debugPrint("⚠️ Biometric: Failed to fetch or cache KYC data.");
+                                }
+
+                                _hideLoadingDialog();
+
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(builder: (_) => const DashboardPage()),
                                 );
                               } else {
+                                _hideLoadingDialog();
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(result['message'] ?? 'Biometric login failed')),
                                 );

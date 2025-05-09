@@ -120,7 +120,7 @@ class _CableTVPageState extends State<CableTVPage> {
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       child: Column(
                         children: [
-                          SvgPicture.asset(provider['image']!, width: 50, height: 50),
+                          Image.asset(provider['image']!, width: 50, height: 50),
                           const SizedBox(height: 4),
                           Text(provider['name']!, style: TextStyle(color: isSelected ? Colors.blue : Colors.black)),
                         ],

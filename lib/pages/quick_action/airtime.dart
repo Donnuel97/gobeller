@@ -28,6 +28,17 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
         phoneController.text.trim().isNotEmpty &&
         amountController.text.trim().isNotEmpty;
   }
+  bool get _isFormValid {
+    final phone = phoneController.text.trim();
+    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+    final pin = pinController.text.trim();
+
+    return selectedNetwork != null &&
+        phone.isNotEmpty &&
+        phone.length == 11 &&
+        amount >= 50 &&
+        pin.length == 4;
+  }
 
   Color? _primaryColor;
   Color? _secondaryColor;
@@ -38,6 +49,8 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
     _loadPrimaryColor();
     phoneController.addListener(_onInputChanged);
     amountController.addListener(_onInputChanged);
+    pinController.addListener(_onInputChanged);
+
   }
   void _onInputChanged() {
     setState(() {}); // Triggers rebuild so _canAccessPinField re-evaluates
@@ -72,7 +85,7 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
   void dispose() {
     phoneController.dispose();
     amountController.dispose();
-    pinController.dispose();
+    pinController.removeListener(_onInputChanged);
     phoneController.removeListener(_onInputChanged);
     amountController.removeListener(_onInputChanged);
     super.dispose();
@@ -275,17 +288,21 @@ class _BuyAirtimePageState extends State<BuyAirtimePage> {
             const SizedBox(height: 24),
 
             ElevatedButton(
-              onPressed: isProcessing ? null : _buyAirtime,
+              onPressed: isProcessing || !_isFormValid ? null : _buyAirtime,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.all(15),
-                backgroundColor: _primaryColor ?? Theme.of(context).primaryColor,
+                backgroundColor: _isFormValid
+                    ? (_primaryColor ?? Theme.of(context).primaryColor)
+                    : Colors.grey,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: isProcessing
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Buy Airtime", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : const Text("Buy Airtime",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
+
           ],
         ),
       ),

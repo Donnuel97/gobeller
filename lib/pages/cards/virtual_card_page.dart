@@ -5,7 +5,7 @@ import 'package:gobeller/pages/success/widget/bottom_nav_bar.dart';
 import 'package:gobeller/controller/cards_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../controller/kyc_controller.dart';
+// import '../../controller/kyc_controller.dart';
 import '../../utils/routes.dart';
 
 class VirtualCardPage extends StatefulWidget {
@@ -34,28 +34,33 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
 
 
   void _checkKycStatus() async {
-    final kycVerifications = await KycVerificationController.fetchKycVerifications();
+    final prefs = await SharedPreferences.getInstance();
+    final rawData = prefs.getString('cached_kyc_data');
 
-    if (kycVerifications != null && kycVerifications.isNotEmpty) {
-      final usedTypes = kycVerifications
-          .map((e) => (e['documentType'] as String).toUpperCase())
-          .toList();
+    bool shouldShowKyc = true;
 
-      if (!(usedTypes.contains('NIN') && usedTypes.contains('BVN'))) {
-        setState(() {
-          _shouldShowKycButton = true;
-        });
+    if (rawData != null) {
+      try {
+        final List<dynamic> kycVerifications = json.decode(rawData);
+        final usedTypes = kycVerifications
+            .map((e) => (e['documentType'] as String?)?.toUpperCase())
+            .whereType<String>()
+            .toList();
+
+        // Check if both BVN and NIN exist
+        shouldShowKyc = !(usedTypes.contains('NIN') && usedTypes.contains('BVN'));
+      } catch (e) {
+        debugPrint("❌ Failed to parse cached_kyc_data: $e");
+        shouldShowKyc = true; // fallback to showing KYC
       }
-    } else {
-      setState(() {
-        _shouldShowKycButton = true; // Show button if there's no verification
-      });
     }
 
     setState(() {
+      _shouldShowKycButton = shouldShowKyc;
       _kycLoading = false;
     });
   }
+
 
 
   Future<void> _loadPrimaryColor() async {
@@ -105,13 +110,15 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
 
 
   @override
+  @override
   Widget build(BuildContext context) {
     final controller = Provider.of<VirtualCardController>(context);
 
-    return FutureBuilder<List<Map<String, dynamic>>?>(
-      future: KycVerificationController.fetchKycVerifications(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _getCachedKycData(), // 👇 Replace API call with cached data
       builder: (context, snapshot) {
         final kycData = snapshot.data ?? [];
+
         final usedTypes = kycData
             .map((item) => (item['documentType'] as String?)?.toUpperCase())
             .whereType<String>()
@@ -176,6 +183,21 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
         );
       },
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _getCachedKycData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawData = prefs.getString('cached_kyc_data');
+
+    if (rawData != null) {
+      try {
+        final List<dynamic> parsed = json.decode(rawData);
+        return parsed.cast<Map<String, dynamic>>();
+      } catch (e) {
+        debugPrint("❌ Failed to parse cached KYC data: $e");
+      }
+    }
+    return [];
   }
 
 

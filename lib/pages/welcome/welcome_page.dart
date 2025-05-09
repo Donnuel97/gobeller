@@ -23,7 +23,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("")
+    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
       ..initialize().then((_) {
         setState(() {});
         _videoController!.setLooping(true);
@@ -101,7 +101,7 @@ class _WelcomePageState extends State<WelcomePage> {
               // Dark overlay with tertiary color and fade animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 500),
-                color: tertiaryColor.withOpacity(1),
+                color: tertiaryColor.withOpacity(0.8),
               ),
 
               // Content

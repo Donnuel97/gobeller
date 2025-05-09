@@ -78,7 +78,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("")
+    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
       ..initialize().then((_) {
         setState(() {});
         _videoController!
@@ -155,7 +155,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             )
           else
             // Container(color: Colors.black),
-            Container(color: _tertiaryColor?.withOpacity(1),),
+            Container(color: _tertiaryColor?.withOpacity(0.8),),
 
           Container(
             // color: const Color(0xCC051330),
