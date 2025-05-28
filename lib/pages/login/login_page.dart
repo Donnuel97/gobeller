@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/login_controller.dart'; // ✅ Imported
 import 'package:gobeller/pages/success/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gobeller/utils/biometric_helper.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../controller/create_wallet_controller.dart';
 import '../../controller/kyc_controller.dart';
+import '../../pages/navigation/base_layout.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -74,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
         if (result['success'] == true) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const DashboardPage()),
+            MaterialPageRoute(builder: (_) => const BaseLayout(initialIndex: 0)),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -166,18 +170,24 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_username', username);
 
-      // ✅ Call KYC fetch and cache here
+      // ✅ Fetch and cache KYC
       final kycData = await KycVerificationController.fetchKycVerifications();
       if (kycData != null) {
         debugPrint("✅ KYC data successfully fetched and cached.");
-      } else {
-        debugPrint("⚠️ Failed to fetch or cache KYC data.");
       }
+
+      // ✅ Fetch and cache currencies
+      await CurrencyController.fetchCurrencies();
+
+      // ✅ Fetch and cache banks
+      final banks = await CurrencyController.fetchBanks();
+      await prefs.setString('cached_banks', json.encode(banks));
+      debugPrint("✅ Banks saved to SharedPreferences.");
 
       Future.delayed(const Duration(milliseconds: 1000), () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardPage()),
+          MaterialPageRoute(builder: (context) => const BaseLayout(initialIndex: 0)),
         );
       });
     } else {
@@ -188,6 +198,8 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = false);
   }
+
+
 
 
   Future<void> _switchAccount() async {
@@ -221,36 +233,33 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_logoUrl != null)
-                  Image.network(
-                    _logoUrl!,
+                  CachedNetworkImage(
+                    imageUrl: _logoUrl!,
                     width: 128,
                     height: 128,
                     fit: BoxFit.contain,
-                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      } else {
-                        return SizedBox(
-                          width: 128,
-                          height: 128,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                  (loadingProgress.expectedTotalBytes ?? 1)
-                                  : null,
-                            ),
-                          ),
-                        );
-                      }
+                    httpHeaders: const {
+                      'User-Agent': 'Flutter App',
+                      'Accept': 'image/png, image/jpeg, image/jpg, image/gif, image/webp, image/*',
                     },
-                    errorBuilder: (context, error, stackTrace) {
+                    placeholder: (context, url) => SizedBox(
+                      width: 128,
+                      height: 128,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: null,
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) {
+                      print('Failed to load image: $url');
+                      print('Error: $error');
                       return const Center(
                         child: Text(
                           'Getting Data...',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          style: TextStyle(color: Colors.black, fontSize: 16),
                         ),
-                      ); // Show "Getting Data..." if image fails to load
+                      );
                     },
                   ),
                 const SizedBox(height: 16),
@@ -342,7 +351,7 @@ class _LoginPageState extends State<LoginPage> {
 
                                 Navigator.pushReplacement(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const DashboardPage()),
+                                  MaterialPageRoute(builder: (_) => const BaseLayout(initialIndex: 0)),
                                 );
                               } else {
                                 _hideLoadingDialog();
@@ -370,7 +379,7 @@ class _LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: () =>
                           Navigator.pushNamed(context, '/register'),
-                      child: const Text("Don’t have an account? Register"),
+                      child: const Text("Don't have an account? Register"),
                     ),
                   ],
                 ),

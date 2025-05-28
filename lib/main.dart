@@ -14,9 +14,13 @@ import 'controller/wallet_transfer_controller.dart';
 import 'controller/registration_controller.dart';
 import 'controller/organization_controller.dart';
 import 'controller/cards_controller.dart';
+import 'controller/loan_controller.dart';
+import 'controller/CacVerificationController.dart';
+import 'controller/property_controller.dart';
 import 'utils/navigator_key.dart';
 import 'themes/color_schemes.dart';
 import 'themes/input_decoration_theme.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -81,6 +85,9 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (context) => NinVerificationController()),
         ChangeNotifierProvider(create: (_) => OrganizationController()),
         ChangeNotifierProvider(create: (context) => VirtualCardController()),
+        ChangeNotifierProvider(create: (context) => CacVerificationController()),
+        ChangeNotifierProvider(create: (context) => LoanController()),
+        ChangeNotifierProvider(create: (context) => PropertyController())
       ],
       child: Consumer<DarkModeProvider>(
         builder: (context, darkMode, child) {

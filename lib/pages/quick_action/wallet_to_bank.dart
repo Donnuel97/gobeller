@@ -30,6 +30,10 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   bool _isPinHidden = true; // Add this as a class-level variable if not already declared
   bool saveBeneficiary = false;
 
+  Color? _primaryColor;
+  Color? _secondaryColor;
+  String? _logoUrl;
+
   List<Map<String, dynamic>> filteredSuggestions = [];
   bool showSuggestions = false;
 
@@ -39,6 +43,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrimaryColorAndLogo();
       final controller = Provider.of<WalletToBankTransferController>(context, listen: false);
       controller.fetchBanks();
       controller.fetchSourceWallets();
@@ -59,7 +64,32 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
   }
 
 
+  Future<void> _loadPrimaryColorAndLogo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');
 
+    if (settingsJson != null) {
+      try {
+        final settings = json.decode(settingsJson);
+        final data = settings['data'] ?? {};
+
+        setState(() {
+          final primaryColorHex = data['customized-app-primary-color'];
+          final secondaryColorHex = data['customized-app-secondary-color'];
+
+          _primaryColor = primaryColorHex != null
+              ? Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')))
+              : Colors.blue;
+
+          _secondaryColor = secondaryColorHex != null
+              ? Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')))
+              : Colors.blueAccent;
+
+          _logoUrl = data['customized-app-logo-url'];
+        });
+      } catch (_) {}
+    }
+  }
   void _showTransactionSummary() {
     showModalBottomSheet(
       context: context,
@@ -611,7 +641,7 @@ class _WalletToBankTransferPageState extends State<WalletToBankTransferPage> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEB6D00),
+                          backgroundColor: _primaryColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

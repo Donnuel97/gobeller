@@ -9,7 +9,8 @@ class WalletToBankTransferController with ChangeNotifier {
 
   bool _isProcessing = false;
   bool get isProcessing => _isProcessing;
-
+  bool isLoadingWallets = true;
+  bool isLoadingBanks = true;
   // Add this method
   void setProcessing(bool value) {
     _isProcessing = value;
@@ -53,6 +54,7 @@ class WalletToBankTransferController with ChangeNotifier {
   }
 
   /// **Fetches list of banks**
+  /// **Fetches list of banks**
   Future<void> fetchBanks() async {
     _isLoading = true;
     notifyListeners();
@@ -71,12 +73,20 @@ class WalletToBankTransferController with ChangeNotifier {
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
+      // 🔍 Print full response to console
+      print("🔍 Banks API Response: ${jsonEncode(response)}");
+
       if (response["status"] == true) {
         _banks = (response["data"] as List).map((bank) => {
           "id": bank["id"] ?? "Unknown",
           "bank_code": bank["code"],
           "bank_name": bank["name"]
         }).toList();
+
+        // ✅ Save to SharedPreferences
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString('saved_banks', jsonEncode(_banks));
+
       } else {
         _transactionMessage = "⚠️ We couldn't retrieve the list of banks. Please try again later.";
         _banks = [];
@@ -84,11 +94,14 @@ class WalletToBankTransferController with ChangeNotifier {
     } catch (e) {
       _transactionMessage = "❌ We encountered an error while fetching banks. Please check your internet connection and try again.";
       _banks = [];
+      print("❌ fetchBanks error: $e");
     }
 
     _isLoading = false;
     notifyListeners();
   }
+
+
 
   /// **Fetches source wallets**
   Future<void> fetchSourceWallets() async {
@@ -109,23 +122,27 @@ class WalletToBankTransferController with ChangeNotifier {
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
-      if (response["status"] == true && response["data"]?["data"] != null) {
-        final List wallets = response["data"]["data"];
+      print("🔹 Raw Wallets API Response: $response");
+
+      // ✅ The "data" field is a List, not a Map
+      if (response["status"] == true && response["data"] is List) {
+        final List wallets = response["data"];
 
         _sourceWallets = wallets.map((wallet) {
           return {
-            "account_number": wallet["wallet_number"] ?? "",
-            "available_balance": wallet["balance"] ?? "0.00",
+            "account_number": wallet["wallet_number"]?.toString() ?? "",
+            "available_balance": wallet["balance"]?.toString() ?? "0.00",
             "currency_symbol": wallet["currency"]?["symbol"] ?? "₦",
-            "wallet_type": wallet["wallet_type"]?["name"] ?? "Default Wallet",
+            "wallet_type": wallet["wallet_type_id"] ?? "Unknown Wallet Type",
+            "ownership_label": wallet["ownership_label"] ?? "",
           };
         }).toList();
       } else {
-        _transactionMessage = "⚠️ Unable to fetch wallets.";
+        _transactionMessage = "⚠️ Wallet list is missing or invalid.";
         _sourceWallets = [];
       }
     } catch (e) {
-      print("Error fetching wallets: $e");
+      print("❌ Error fetching wallets: $e");
       _transactionMessage = "❌ Error fetching wallets. Please try again.";
       _sourceWallets = [];
     }
@@ -135,11 +152,12 @@ class WalletToBankTransferController with ChangeNotifier {
   }
 
 
+
   /// **Verifies a bank account before processing transfer**
   Future<void> verifyBankAccount({
     required String accountNumber,
     required String bankId,
-  }) async {
+    }) async {
     _isVerifyingWallet = true;
     _beneficiaryName = "";
     notifyListeners();

@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:gobeller/controller/WalletController.dart';
 import 'package:gobeller/controller/create_wallet_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'widget/wallet_list.dart';
 
 class FXWalletPage extends StatefulWidget {
@@ -71,6 +74,7 @@ class _FXWalletPageState extends State<FXWalletPage> {
           setState(() {
             wallets = List<Map<String, dynamic>>.from(data.map((wallet) {
               return {
+                "type": wallet["ownership_type"] ?? "Normal wallet",
                 "name": wallet["bank"]?["name"] ?? "Unknown Bank",
                 "wallet_number": wallet["wallet_number"] ?? "N/A",
                 "balance": double.tryParse(wallet["balance"]?.toString() ?? "0.0") ?? 0.0,
@@ -107,20 +111,47 @@ class _FXWalletPageState extends State<FXWalletPage> {
   }
 
   Future<void> _loadCurrencies() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
       if (!mounted) return;
       setState(() => isCurrencyLoading = true);
 
+      final cachedCurrencies = prefs.getString('cachedCurrencies');
+      if (cachedCurrencies != null) {
+        final decoded = jsonDecode(cachedCurrencies);
+        if (decoded is List) {
+          setState(() => currencies = decoded);
+        }
+      }
+
       final response = await CurrencyController.fetchCurrencies();
+      if (response != null) {
+        setState(() => currencies = response);
+        prefs.setString('cachedCurrencies', jsonEncode(response));
+      }
+    } catch (e) {
+      debugPrint("Failed to load currencies: $e");
+    } finally {
+      if (!mounted) return;
+      setState(() => isCurrencyLoading = false);
+    }
+  }
+
+  Future<void> _loadBanks() async {
+    try {
+      if (!mounted) return;
+      setState(() => isBanksLoading = true);
+
+      final response = await CurrencyController.fetchBanks();
       if (!mounted) return;
 
       setState(() {
-        currencies = response ?? [];
-        isCurrencyLoading = false;
+        banks = response ?? [];
+        isBanksLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => isCurrencyLoading = false);
+      setState(() => isBanksLoading = false);
     }
   }
 
@@ -142,23 +173,23 @@ class _FXWalletPageState extends State<FXWalletPage> {
     }
   }
 
-  Future<void> _loadBanks() async {
-    try {
-      if (!mounted) return;
-      setState(() => isBanksLoading = true);
-
-      final response = await CurrencyController.fetchBanks();
-      if (!mounted) return;
-
-      setState(() {
-        banks = response ?? [];
-        isBanksLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isBanksLoading = false);
-    }
-  }
+  // Future<void> _loadBanks() async {
+  //   try {
+  //     if (!mounted) return;
+  //     setState(() => isBanksLoading = true);
+  //
+  //     final response = await CurrencyController.fetchBanks();
+  //     if (!mounted) return;
+  //
+  //     setState(() {
+  //       banks = response ?? [];
+  //       isBanksLoading = false;
+  //     });
+  //   } catch (e) {
+  //     if (!mounted) return;
+  //     setState(() => isBanksLoading = false);
+  //   }
+  // }
 
   void _createNewWallet(BuildContext context) {
     if (isCurrencyLoading || isWalletTypeLoading || isBanksLoading) {
@@ -238,19 +269,31 @@ class _FXWalletPageState extends State<FXWalletPage> {
                               ? const CircularProgressIndicator()
                               : DropdownButtonFormField<String>(
                             decoration: const InputDecoration(labelText: "Bank"),
-                            items: banks.map<DropdownMenuItem<String>>((bank) {
+                            items: banks.isNotEmpty
+                                ? banks.map<DropdownMenuItem<String>>((bank) {
                               return DropdownMenuItem<String>(
                                 value: bank["id"],
                                 child: Text(bank["name"]),
                               );
-                            }).toList(),
-                            onChanged: (value) {
+                            }).toList()
+                                : [
+                              const DropdownMenuItem<String>(
+                                value: '',
+                                child: Text("No banks available"),
+                              ),
+                            ],
+                            onChanged: banks.isNotEmpty
+                                ? (value) {
                               setStateDialog(() {
                                 selectedBankId = value!;
                               });
-                            },
-                            value: selectedBankId.isNotEmpty ? selectedBankId : null,
+                            }
+                                : null,
+                            value: banks.isNotEmpty
+                                ? (selectedBankId.isNotEmpty ? selectedBankId : null)
+                                : '',
                           ),
+
                       ],
                     ),
                   ),

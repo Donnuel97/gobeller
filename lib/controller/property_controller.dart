@@ -1,0 +1,390 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/utils/api_service.dart';
+
+class PropertyController with ChangeNotifier {
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  List<Map<String, dynamic>> _properties = [];
+  List<Map<String, dynamic>> get properties => _filteredProperties;
+  Map<String, Map<String, dynamic>> _propertyDetailsCache = {};
+
+  int _currentPage = 1;
+  int get currentPage => _currentPage;
+
+  int _totalPages = 1;
+  int get totalPages => _totalPages;
+
+  List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> get categories => _categories;
+
+  bool _isCategoriesLoading = false;
+  bool get isCategoriesLoading => _isCategoriesLoading;
+
+  bool _isSubscriptionLoading = false;
+  bool get isSubscriptionLoading => _isSubscriptionLoading;
+
+  // Filtered list shown in UI, initially same as _properties
+  List<Map<String, dynamic>> _filteredProperties = [];
+
+  String? _selectedCategoryId;
+
+  Future<String?> _getAuthToken() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  /// Fetches paginated property list from API
+  Future<void> fetchProperties({int page = 1}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/properties?page=$page";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      };
+
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      debugPrint("🏘️ Properties API Full Response: $response");
+
+      if (response['status'] == true) {
+        final responseData = response['data'];
+
+        if (responseData is List) {
+          // Direct list of properties — use it directly
+          if (page == 1) {
+            _properties = responseData.cast<Map<String, dynamic>>();
+          } else {
+            _properties.addAll(responseData.cast<Map<String, dynamic>>());
+          }
+          _currentPage = 1;
+          _totalPages = 1;
+        } else if (responseData is Map<String, dynamic>) {
+          // Paginated response with nested 'data'
+          final dynamic propertyList = responseData['data'];
+
+          if (propertyList is List) {
+            if (page == 1) {
+              _properties = propertyList.cast<Map<String, dynamic>>();
+            } else {
+              _properties.addAll(propertyList.cast<Map<String, dynamic>>());
+            }
+
+            _currentPage = responseData['current_page'] ?? 1;
+            _totalPages = responseData['last_page'] ?? 1;
+          } else {
+            _properties = [];
+            _currentPage = 1;
+            _totalPages = 1;
+          }
+        } else {
+          debugPrint("⚠️ Unexpected response format: $responseData");
+          _properties = [];
+          _currentPage = 1;
+          _totalPages = 1;
+        }
+      } else {
+        debugPrint("❌ API responded with status=false: ${response['message']}");
+        _properties = [];
+        _currentPage = 1;
+        _totalPages = 1;
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching properties: $e");
+      _properties = [];
+      _currentPage = 1;
+      _totalPages = 1;
+    } finally {
+      // Apply filtering after fetch:
+      _applyCategoryFilter();
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPropertyCategories({int page = 1, int itemsPerPage = 20}) async {
+    _isCategoriesLoading = true;
+    notifyListeners();
+
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/property-categories?page=$page&items_per_page=$itemsPerPage";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      };
+
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      debugPrint("📂 Property Categories API Full Response: $response");
+
+      if (response['status'] == true) {
+        final responseData = response['data'];
+
+        if (responseData is Map<String, dynamic>) {
+          final categoryList = responseData['data'];
+
+          if (categoryList is List) {
+            if (page == 1) {
+              _categories = categoryList.cast<Map<String, dynamic>>();
+            } else {
+              _categories.addAll(categoryList.cast<Map<String, dynamic>>());
+            }
+          } else {
+            _categories = [];
+            debugPrint("⚠️ 'data' key inside response data is not a List");
+          }
+        } else {
+          _categories = [];
+          debugPrint("⚠️ response data is not a Map<String, dynamic>");
+        }
+      } else {
+        _categories = [];
+        debugPrint("❌ API responded with status=false: ${response['message']}");
+      }
+    } catch (e) {
+      _categories = [];
+      debugPrint("❌ Error fetching property categories: $e");
+    } finally {
+      _isCategoriesLoading = false;
+      notifyListeners();
+    }
+  }
+
+
+
+
+
+
+  Future<Map<String, dynamic>?> fetchPropertyDetails(String propertyId) async {
+    if (_propertyDetailsCache.containsKey(propertyId)) {
+      return _propertyDetailsCache[propertyId];
+    }
+
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/properties/$propertyId";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      };
+
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      debugPrint("🏡 Property Details Response: $response");
+
+      if (response['status'] == true && response['data'] is Map<String, dynamic>) {
+        final propertyData = response['data'] as Map<String, dynamic>;
+        _propertyDetailsCache[propertyId] = propertyData;
+        return propertyData;
+      } else {
+        debugPrint("❌ Property details fetch failed: ${response['message']}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching property details: $e");
+      return null;
+    }
+  }
+
+
+
+  /// Initiate property subscription
+  Future<Map<String, dynamic>> initiateSubscriptionRequest({
+    required String propertyId,
+    required int quantity,
+    required String desiredPaymentStartDate,
+    required int desiredPaymentDurationInterval,
+    required String preferredPaymentOption,
+    String? bankId,
+    String? bankAccountNumber,
+    String? bankAccountName,
+    String? walletId,
+  }) async {
+    _isSubscriptionLoading = true;
+    notifyListeners();
+
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/property-subscriptions/initiate/request";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+
+      final Map<String, dynamic> body = {
+        "property_id": propertyId,
+        "quantity": quantity,
+        "desired_payment_start_date": desiredPaymentStartDate,
+        "desired_payment_duration_interval": desiredPaymentDurationInterval,
+        "preferred_payment_option": preferredPaymentOption,
+        if (preferredPaymentOption == "bank" || preferredPaymentOption == "direct-debit") ...{
+          "bank_id": bankId,
+          "bank_account_number": bankAccountNumber,
+          if (bankAccountName != null) "bank_account_name": bankAccountName,
+        },
+        if (preferredPaymentOption == "wallet") "wallet_id": walletId,
+      };
+
+      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+
+      debugPrint("🟡 Initiate Subscription Response: $response");
+
+      return response;
+    } catch (e) {
+      debugPrint("❌ Error initiating subscription: $e");
+      return {
+        "status": false,
+        "message": "Failed to initiate subscription: $e"
+      };
+    } finally {
+      _isSubscriptionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Finalize the subscription process
+  Future<Map<String, dynamic>> processSubscriptionRequest({
+    required String propertyId,
+    required int quantity,
+    required String desiredPaymentStartDate,
+    required int desiredPaymentDurationInterval,
+    required String preferredPaymentOption,
+    String? bankId,
+    String? bankAccountNumber,
+    String? bankAccountName,
+    String? walletId,
+    String? bankName,
+    String? walletName,
+  }) async {
+    _isSubscriptionLoading = true;
+    notifyListeners();
+
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/property-subscriptions/process/request";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+
+      final Map<String, dynamic> body = {
+        "property_id": propertyId,
+        "quantity": quantity,
+        "desired_payment_start_date": desiredPaymentStartDate,
+        "desired_payment_duration_interval": desiredPaymentDurationInterval,
+        "preferred_payment_option": preferredPaymentOption,
+        if (preferredPaymentOption == "bank" || preferredPaymentOption == "direct-debit") ...{
+          "bank_id": bankId,
+          "bank_account_number": bankAccountNumber,
+          if (bankAccountName != null) "bank_account_name": bankAccountName,
+          if (bankName != null) "bank_name": bankName,
+        },
+        if (preferredPaymentOption == "wallet") ...{
+          "wallet_id": walletId,
+          if (walletName != null) "wallet_name": walletName,
+        },
+      };
+
+      final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers);
+
+      debugPrint("🟢 Process Subscription Response: $response");
+
+      return response;
+    } catch (e) {
+      debugPrint("❌ Error processing subscription: $e");
+      return {
+        "status": false,
+        "message": "Failed to process subscription: $e"
+      };
+    } finally {
+      _isSubscriptionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetch subscription history for a specific property
+  Future<Map<String, dynamic>?> fetchPropertySubscriptionHistory(String propertyId) async {
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/property-subscriptions/$propertyId";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      };
+
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      debugPrint("📜 Property Subscription History Response: $response");
+
+      if (response['status'] == true) {
+        return response['data'] as Map<String, dynamic>;
+      } else {
+        debugPrint("❌ Failed to fetch subscription history: ${response['message']}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching subscription history: $e");
+      return null;
+    }
+  }
+
+
+  /// Apply category filter to _properties, updating _filteredProperties
+  void _applyCategoryFilter() {
+    if (_selectedCategoryId == null) {
+      _filteredProperties = List.from(_properties);
+    } else {
+      _filteredProperties = _properties.where((property) {
+        // Adjust this key to your property data's category id key
+        return property['property_category_id'] == _selectedCategoryId;
+      }).toList();
+    }
+  }
+
+  /// Public method to filter by category and notify listeners
+  void filterPropertiesByCategory(String? categoryId) {
+    _selectedCategoryId = categoryId;
+    _applyCategoryFilter();
+    notifyListeners();
+  }
+
+  /// 🔍 Get property name by ID
+  String? getPropertyNameById(String id) {
+    try {
+      final property = _properties.firstWhere(
+            (element) => element["id"] == id,
+        orElse: () => <String, dynamic>{},
+      );
+      return property["name"] ?? "Unknown";
+    } catch (e) {
+      debugPrint("❌ Error getting property name: $e");
+      return null;
+    }
+  }
+
+  /// Check if next page is available
+  bool get hasNextPage => _currentPage < _totalPages;
+
+  /// Load next page (if exists)
+  Future<bool> loadNextPage() async {
+    if (!hasNextPage) return false;
+    await fetchProperties(page: _currentPage + 1);
+    return true;
+  }
+}

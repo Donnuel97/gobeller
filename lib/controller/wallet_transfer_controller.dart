@@ -104,23 +104,27 @@ class WalletTransferController with ChangeNotifier {
         extraHeaders: {'Authorization': 'Bearer $token'},
       );
 
-      if (response["status"] == true && response["data"]?["data"] != null) {
-        final List wallets = response["data"]["data"];
+      print("🔹 Raw Wallets API Response: $response");
+
+      // ✅ The "data" field is a List, not a Map
+      if (response["status"] == true && response["data"] is List) {
+        final List wallets = response["data"];
 
         _sourceWallets = wallets.map((wallet) {
           return {
-            "account_number": wallet["wallet_number"] ?? "",
-            "available_balance": wallet["balance"] ?? "0.00",
+            "account_number": wallet["wallet_number"]?.toString() ?? "",
+            "available_balance": wallet["balance"]?.toString() ?? "0.00",
             "currency_symbol": wallet["currency"]?["symbol"] ?? "₦",
-            "wallet_type": wallet["wallet_type"]?["name"] ?? "Default Wallet"
+            "wallet_type": wallet["wallet_type_id"] ?? "Unknown Wallet Type",
+            "ownership_label": wallet["ownership_label"] ?? "",
           };
         }).toList();
       } else {
-        _transactionMessage = "⚠️ Unable to fetch wallets.";
+        _transactionMessage = "⚠️ Wallet list is missing or invalid.";
         _sourceWallets = [];
       }
     } catch (e) {
-      print("Error: $e");
+      print("❌ Error fetching wallets: $e");
       _transactionMessage = "❌ Error fetching wallets. Please try again.";
       _sourceWallets = [];
     }
@@ -128,6 +132,7 @@ class WalletTransferController with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
 
 
   /// **Verifies recipient wallet number**

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:gobeller/pages/success/widget/bottom_nav_bar.dart';
 import 'package:gobeller/controller/cards_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,7 +109,6 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
 
 
   @override
-  @override
   Widget build(BuildContext context) {
     final controller = Provider.of<VirtualCardController>(context);
 
@@ -171,14 +169,6 @@ class _VirtualCardPageState extends State<VirtualCardPage> {
                     : _buildCardContent(controller.virtualCards.first),
               ),
             ],
-          ),
-          bottomNavigationBar: BottomNavBar(
-            currentIndex: 2,
-            onTabSelected: (index) {
-              if (index != 2) {
-                Navigator.pushReplacementNamed(context, _getRouteForIndex(index));
-              }
-            },
           ),
         );
       },

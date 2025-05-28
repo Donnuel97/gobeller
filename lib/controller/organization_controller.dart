@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 class OrganizationController extends ChangeNotifier {
   Map<String, dynamic>? organizationData;
   Map<String, dynamic>? appSettingsData;
+  Map<String, dynamic>? supportDetails;
+
   bool isLoading = false;
 
   String? appId;
@@ -20,7 +22,7 @@ class OrganizationController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    const String url = 'https://app.gobeller.com/api/v1/organizations/sddtif';
+    const String url = 'https://app.gobeller.cc/api/v1/organizations/101';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -30,20 +32,20 @@ class OrganizationController extends ChangeNotifier {
 
         debugPrint("✅ Full Org Response: ${jsonEncode(fullResponse)}");
 
+        final prefs = await SharedPreferences.getInstance();
+
+        // Always extract App ID even if data is unchanged
+        appId = fullResponse?['data']?['id'];
+        if (appId != null) {
+          await prefs.setString('appId', appId!);
+        }
+
         // Only update SharedPreferences if the data has changed
         if (!_isEqual(organizationData, fullResponse)) {
-          organizationData = fullResponse; // Save full response now
-
-          final prefs = await SharedPreferences.getInstance();
+          organizationData = fullResponse;
           await prefs.setString('organizationData', jsonEncode(organizationData));
 
-          // Extract and save App ID from inside the response
-          appId = organizationData?['data']?['id'];
-          if (appId != null) {
-            prefs.setString('appId', appId!);
-          }
-
-          // Proceed to fetch settings
+          // Proceed to fetch settings only if data has changed
           await fetchAppSettings();
         }
       } else {
@@ -57,7 +59,6 @@ class OrganizationController extends ChangeNotifier {
     notifyListeners();
   }
 
-
   /// Fetch App Settings and save to SharedPreferences if it's different from the cached response
   Future<void> fetchAppSettings() async {
     if (appId == null) {
@@ -68,7 +69,7 @@ class OrganizationController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    const String url = 'https://app.gobeller.com/api/v1/customized-app-api/public-app/settings';
+    const String url = 'https://app.gobeller.cc/api/v1/customized-app-api/public-app/settings';
 
     try {
       final response = await http.get(
@@ -84,13 +85,11 @@ class OrganizationController extends ChangeNotifier {
         final newAppSettingsData = jsonDecode(response.body);
         debugPrint("✅ App Settings Data: ${jsonEncode(newAppSettingsData)}");
 
-        // Only update SharedPreferences if the data has changed
         if (!_isEqual(appSettingsData, newAppSettingsData)) {
           appSettingsData = newAppSettingsData;
           final prefs = await SharedPreferences.getInstance();
-          prefs.setString('appSettingsData', jsonEncode(appSettingsData));
+          await prefs.setString('appSettingsData', jsonEncode(appSettingsData));
 
-          // Extract the icon URL from app settings
           String? iconUrl = appSettingsData?['data']['iconUrl'];
 
           if (iconUrl != null) {
@@ -121,11 +120,9 @@ class OrganizationController extends ChangeNotifier {
 
         debugPrint("✅ Icon saved to: $filePath");
 
-        // Save the icon path to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        prefs.setString('appIconPath', filePath);
+        await prefs.setString('appIconPath', filePath);
 
-        // Notify UI to update icon
         setAppIcon(filePath);
       } else {
         debugPrint("❌ Failed to download icon. Status: ${response.statusCode}");
@@ -137,22 +134,89 @@ class OrganizationController extends ChangeNotifier {
 
   /// Set the app icon path to be used in the UI
   Future<void> setAppIcon(String filePath) async {
-    // You can now use this file path to show the icon in the app UI
-    // Update your UI logic accordingly to display the downloaded icon
-    notifyListeners();
+    notifyListeners(); // You might add logic here if needed
+  }
+
+  /// Fetch support details
+  Future<void> fetchSupportDetails() async {
+    if (appId == null) {
+      debugPrint("❌ AppID is null. Cannot fetch support details.");
+      return;
+    }
+
+    final String url = 'https://app.gobeller.cc/api/v1/organizations/customer-support-details/$appId';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      debugPrint("🔍 Support Details Raw Response Status: ${response.statusCode}");
+      debugPrint("🔍 Support Details Raw Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final fullSupportResponse = jsonDecode(response.body);
+
+        supportDetails = fullSupportResponse;
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('customerSupportDetails', jsonEncode(fullSupportResponse));
+
+        debugPrint("✅ Support details saved to SharedPreferences: ${jsonEncode(fullSupportResponse)}");
+
+        if (fullSupportResponse['data'] != null) {
+          final data = fullSupportResponse['data'];
+          debugPrint("📋 Support Details Breakdown:");
+          debugPrint("   - Organization: ${data['organization_full_name'] ?? 'N/A'}");
+          debugPrint("   - Email: ${data['official_email'] ?? 'N/A'}");
+          debugPrint("   - Phone: ${data['official_telephone'] ?? 'N/A'}");
+          debugPrint("   - Website: ${data['public_existing_website'] ?? 'N/A'}");
+          debugPrint("   - Address: ${data['address']?['physical_address'] ?? 'N/A'}");
+          debugPrint("   - Country: ${data['address']?['country'] ?? 'N/A'}");
+        }
+
+        notifyListeners();
+      } else {
+        debugPrint("❌ Failed to load support details. Status: ${response.statusCode}");
+        debugPrint("❌ Response body: ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching support details: $e");
+      debugPrint("❌ Stack trace: ${StackTrace.current}");
+    }
   }
 
   /// Load cached data from SharedPreferences (optional)
   Future<void> loadCachedData() async {
     final prefs = await SharedPreferences.getInstance();
+
     final orgJson = prefs.getString('organizationData');
     final settingsJson = prefs.getString('appSettingsData');
+    final supportJson = prefs.getString('customerSupportDetails');
     final iconPath = prefs.getString('appIconPath');
+    final cachedAppId = prefs.getString('appId');
 
-    if (orgJson != null) organizationData = jsonDecode(orgJson);
-    if (settingsJson != null) appSettingsData = jsonDecode(settingsJson);
+    if (orgJson != null) {
+      organizationData = jsonDecode(orgJson);
+      debugPrint("📱 Loaded cached organization data");
+    }
+
+    if (settingsJson != null) {
+      appSettingsData = jsonDecode(settingsJson);
+      debugPrint("📱 Loaded cached app settings data");
+    }
+
+    if (supportJson != null) {
+      supportDetails = jsonDecode(supportJson);
+      debugPrint("📱 Loaded cached support details: ${jsonEncode(supportDetails)}");
+    }
+
     if (iconPath != null) {
       setAppIcon(iconPath);
+      debugPrint("📱 Loaded cached icon path: $iconPath");
+    }
+
+    if (cachedAppId != null) {
+      appId = cachedAppId;
+      debugPrint("📱 Loaded cached AppID: $appId");
     }
 
     notifyListeners();
@@ -160,10 +224,7 @@ class OrganizationController extends ChangeNotifier {
 
   /// Helper function to compare two JSON objects (Maps) for equality
   bool _isEqual(Map<String, dynamic>? oldData, Map<String, dynamic>? newData) {
-    if (oldData == null || newData == null) {
-      return false;
-    }
-
+    if (oldData == null || newData == null) return false;
     return jsonEncode(oldData) == jsonEncode(newData);
   }
 }

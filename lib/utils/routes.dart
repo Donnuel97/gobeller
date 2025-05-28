@@ -15,12 +15,20 @@ import 'package:gobeller/pages/quick_action/electric_meter_page.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_wallet.dart';
 import 'package:gobeller/pages/quick_action/wallet_to_bank.dart';
 
+import 'package:gobeller/pages/loan/loan.dart';
+import 'package:gobeller/pages/loan/loan_form.dart';
+import 'package:gobeller/pages/loan/loan_summary.dart';
+import 'package:gobeller/pages/fixed_deposit/fixed_deposit.dart';
+import 'package:gobeller/pages/fixed_deposit/fixed_form.dart';
+
 import 'package:gobeller/pages/coming_soon/corp_soon.dart';
 import 'package:gobeller/pages/coming_soon/fx_soon.dart';
 import 'package:gobeller/pages/coming_soon/loan_soon.dart';
 
 import 'package:gobeller/pages/corporate_account/corporate_registration.dart';
-
+import 'package:gobeller/pages/corporate_account/account_details_page.dart';
+import 'package:gobeller/pages/navigation/base_layout.dart';
+import 'package:gobeller/pages/borrowers/borrowers.dart';
 import 'package:gobeller/pages/success_screens/registration_success_screen/regSuccess.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/airtime_success.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/data_success.dart';
@@ -29,11 +37,7 @@ import 'package:gobeller/pages/success_screens/quick_menu/wallet_to_bank_success
 import 'package:gobeller/pages/success_screens/quick_menu/wallet_to_wallet_success.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/cable_result.dart';
 
-
-
-
 class Routes {
-
   static const String initial = '/';
   static const String login = '/login';
   static const String register = '/register';
@@ -56,21 +60,23 @@ class Routes {
   static const String bank_result = '/bank_result';
   static const String cable_result = '/cable_result';
   static const String card_details = '/card_details';
-
   static const String coming_soon = '/coming_soon';
   static const String fx_soon = '/fx_soon';
   static const String loan_soon = '/loan_soon';
-
   static const String corporate = '/corporate';
-
-
-
+  static const String corporate_account = '/corporate_account';
+  static const String loan = '/loan';
+  static const String loan_form = '/loan_form';
+  static const String fixed = '/fixed';
+  static const String fixed_form = '/fixed_form';
+  static const String loan_summary = '/loan_summary';
+  static const String borrow = '/borrow';
 
   static Map<String, Widget Function(BuildContext)> routes = {
     initial: (context) => const WelcomePage(),
     login: (context) => const LoginPage(),
     register: (context) => RegistrationPage(),
-    dashboard: (context) => const DashboardPage(),
+    dashboard: (context) => const BaseLayout(initialIndex: 0),
     history: (context) => const TransactionHistoryPage(),
     profile: (context) => const ProfilePage(),
     wallet: (context) => const WalletPage(),
@@ -88,11 +94,20 @@ class Routes {
     electricity_result: (context) => const ElectricityResultPage(),
     bank_result: (context) => const WalletTransferResultPage(),
     cable_result: (context) => const CableTVResultPage(),
-    coming_soon: (context) => const  UpgradeScreen(),
-    loan_soon: (context) => const  LoanUpgradeScreen(),
-    fx_soon: (context) => const  FxUpgradeScreen(),
-    corporate: (context) => const  CorporateAccountRegistrationPage(),
-    card_details: (context) { final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;return CardDetailsPage(card: card);},
+    coming_soon: (context) => const UpgradeScreen(),
+    loan_soon: (context) => const LoanUpgradeScreen(),
+    fx_soon: (context) => const FxUpgradeScreen(),
+    corporate: (context) => const CorporateAccountRegistrationPage(),
+    corporate_account: (context) => const AccountDetailsPage(),
+    loan: (context) => const LoanPage(),
+    borrow: (context) => const PropertyListPage(),
+    loan_summary: (context) => LoanSummaryPage(),
+    fixed: (context) => FixedDepositPage(),
+    fixed_form: (context) => CreatePlanPage(),
+    card_details: (context) {
+      final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      return CardDetailsPage(card: card);
+    },
   };
 }
 

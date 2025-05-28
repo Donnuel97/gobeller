@@ -473,7 +473,7 @@ class NinVerificationController with ChangeNotifier {
     required String password,
     required int transactionPin,
     required String dateOfBirth,
-  }) async {
+   }) async {
     _isSubmitting = true;
     _submissionMessage = '';
     notifyListeners();

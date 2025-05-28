@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ConstApi {
-  static const String baseUrl = 'https://app.gobeller.com';
+  static const String baseUrl = 'https://app.gobeller.cc';
   static const String basePath = '/api/v1';
 
   /// Dynamically get headers with AppID from SharedPreferences

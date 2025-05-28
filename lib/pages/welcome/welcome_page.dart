@@ -6,6 +6,7 @@ import 'package:gobeller/utils/routes.dart';
 import 'package:gobeller/controller/organization_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -23,7 +24,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
 
-    _videoController = VideoPlayerController.asset("assets/videos/welcome_bg.mp4")
+    _videoController = VideoPlayerController.asset("")
       ..initialize().then((_) {
         setState(() {});
         _videoController!.setLooping(true);
@@ -48,12 +49,15 @@ class _WelcomePageState extends State<WelcomePage> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await orgController.loadCachedData();
         await orgController.fetchOrganizationData();
+        await orgController.fetchSupportDetails(); // ✅ Fetch support details here
+
 
         if ((orgController.organizationData == null || orgController.appSettingsData == null) && !_hasRetried) {
           _hasRetried = true;
           Future.delayed(const Duration(seconds: 3), () async {
             debugPrint("🔁 Retrying organization data fetch...");
             await orgController.fetchOrganizationData();
+            await orgController.fetchSupportDetails();
           });
         }
       });
@@ -101,7 +105,7 @@ class _WelcomePageState extends State<WelcomePage> {
               // Dark overlay with tertiary color and fade animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 500),
-                color: tertiaryColor.withOpacity(0.8),
+                color: tertiaryColor.withOpacity(1),
               ),
 
               // Content
@@ -129,29 +133,27 @@ class _WelcomePageState extends State<WelcomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (logoUrl != null)
-                  Image.network(
-                    logoUrl,
+                  CachedNetworkImage(
+                    imageUrl: logoUrl,
                     width: 128,
                     height: 128,
                     fit: BoxFit.contain,
-                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      } else {
-                        return SizedBox(
-                          width: 128,
-                          height: 128,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
-                                  : null,
-                            ),
-                          ),
-                        );
-                      }
+                    httpHeaders: const {
+                      'User-Agent': 'Flutter App',
+                      'Accept': 'image/png, image/jpeg, image/jpg, image/gif, image/webp, image/*',
                     },
-                    errorBuilder: (context, error, stackTrace) {
+                    placeholder: (context, url) => SizedBox(
+                      width: 128,
+                      height: 128,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: null,
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) {
+                      print('Failed to load image: $url');
+                      print('Error: $error');
                       return const Center(
                         child: Text(
                           'Getting Data...',

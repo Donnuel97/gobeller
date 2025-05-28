@@ -371,7 +371,7 @@ class ProfileController {
         "/customers/kyc-verifications/link/verified",
         body,
         extraHeaders: headers,
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint("🔹 Link KYC API Response: $response");
 
@@ -454,20 +454,19 @@ class ProfileController {
 
       debugPrint("🔹 Wallets Profile API Response: $response");
 
-      if (response["status"] == true) {
-        // Access the 'data' -> 'data' structure to get the wallet list
-        List<dynamic> walletList = response["data"]["data"];
+      if (response["status"] == true && response["data"] is List) {
+        List<dynamic> walletList = response["data"];
 
         if (walletList.isNotEmpty) {
           return {
-            'data': walletList,  // Return the entire wallet list here
+            'data': walletList,
           };
         } else {
           debugPrint("ℹ️ No wallets found.");
           return {};
         }
       } else {
-        debugPrint("Error: ${response["message"]}");
+        debugPrint("⚠️ Invalid response format or status is false.");
         return {};
       }
     } catch (e) {
@@ -475,4 +474,5 @@ class ProfileController {
       return {};
     }
   }
+
 }

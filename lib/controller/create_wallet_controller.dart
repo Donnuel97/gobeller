@@ -202,45 +202,45 @@ class CurrencyController with ChangeNotifier {
 
 
 // static Future<dynamic> createWallet(Map<String, dynamic> body) async {
-  //   try {
-  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     final String? token = prefs.getString('auth_token');
-  //     final String appId = prefs.getString('appId') ?? '';
-  //
-  //     if (token == null) {
-  //       debugPrint("❌ No auth token found.");
-  //       throw Exception("Unauthorized: Please login again.");
-  //     }
-  //
-  //     final headers = {
-  //       'Authorization': 'Bearer $token',
-  //       'Content-Type': 'application/json',
-  //       'AppID': appId,
-  //     };
-  //
-  //     debugPrint("📤 Submitting wallet creation with body: $body");
-  //
-  //     final response = await ApiService.postRequest(
-  //       "/customers/wallets",
-  //       body,
-  //       extraHeaders: headers,
-  //     );
-  //
-  //     debugPrint("✅ Wallet creation response: $response");
-  //
-  //     // Check if status is error and throw with custom message
-  //     if (response is Map<String, dynamic> && response["status"] == "error") {
-  //       throw Exception(response["message"] ?? "An unknown error occurred");
-  //     }
-  //
-  //     return response;
-  //   } catch (e) {
-  //     debugPrint("❌ Error creating wallet: $e");
-  //
-  //     // Pass back the error to the UI in a way that can be shown nicely
-  //     throw Exception(e.toString().replaceAll("Exception: ", ""));
-  //   }
-  // }
+//   try {
+//     final SharedPreferences prefs = await SharedPreferences.getInstance();
+//     final String? token = prefs.getString('auth_token');
+//     final String appId = prefs.getString('appId') ?? '';
+//
+//     if (token == null) {
+//       debugPrint("❌ No auth token found.");
+//       throw Exception("Unauthorized: Please login again.");
+//     }
+//
+//     final headers = {
+//       'Authorization': 'Bearer $token',
+//       'Content-Type': 'application/json',
+//       'AppID': appId,
+//     };
+//
+//     debugPrint("📤 Submitting wallet creation with body: $body");
+//
+//     final response = await ApiService.postRequest(
+//       "/customers/wallets",
+//       body,
+//       extraHeaders: headers,
+//     );
+//
+//     debugPrint("✅ Wallet creation response: $response");
+//
+//     // Check if status is error and throw with custom message
+//     if (response is Map<String, dynamic> && response["status"] == "error") {
+//       throw Exception(response["message"] ?? "An unknown error occurred");
+//     }
+//
+//     return response;
+//   } catch (e) {
+//     debugPrint("❌ Error creating wallet: $e");
+//
+//     // Pass back the error to the UI in a way that can be shown nicely
+//     throw Exception(e.toString().replaceAll("Exception: ", ""));
+//   }
+// }
 
 
 

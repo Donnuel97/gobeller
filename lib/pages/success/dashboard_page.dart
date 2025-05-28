@@ -5,10 +5,10 @@ import 'package:gobeller/controller/profileControllers.dart';
 import 'package:gobeller/pages/success/widget/user_info_card.dart';
 import 'package:gobeller/pages/success/widget/quick_actions_grid.dart';
 import 'package:gobeller/pages/success/widget/transaction_list.dart';
-import 'package:gobeller/pages/success/widget/bottom_nav_bar.dart';
 import 'package:gobeller/pages/login/login_page.dart';
 import 'package:gobeller/utils/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gobeller/pages/navigation/base_layout.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -18,18 +18,19 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  int _selectedIndex = 0;
   late Future<Map<String, dynamic>?> _userProfileFuture;
 
   Color? _primaryColor;
   Color? _secondaryColor;
   Color? _tertiaryColor;
+  bool _showBanner = false;
 
   String? _logoUrl;
   String _welcomeTitle = "Dashboard";
   String _welcomeDescription = "We are here to help you achieve your goals.";
 
   List<Map<String, dynamic>> _ads = [];
+  Map<String, dynamic> _menuItems = {};
 
   @override
   void initState() {
@@ -65,9 +66,17 @@ class _DashboardPageState extends State<DashboardPage> {
       });
     }
 
+
     if (orgJson != null) {
       final Map<String, dynamic> orgData = json.decode(orgJson);
       final data = orgData['data'] ?? {};
+
+      _menuItems = {
+        ...?orgData['data']?['customized_app_displayable_menu_items'],
+        // "display-corporate-account-menu": true,
+        // "display-loan-menu": true,
+        "display-fx-menu": true,
+      };
 
       setState(() {
         _welcomeTitle = "Welcome to ${data['short_name']} ";
@@ -99,9 +108,13 @@ class _DashboardPageState extends State<DashboardPage> {
           };
         }).toList();
 
+        // Check for banner display flag
+        final bannerEnabled = _menuItems['display-banner'] ?? false;
+
         if (mounted) {
           setState(() {
             _ads = adsList;
+            _showBanner = bannerEnabled;
           });
         }
       } else {
@@ -112,19 +125,31 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-
-  void _onTabSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  void _logout() {
-    // Logic to log out the user (e.g., clear user session, navigate to login)
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
+  void _logout() async {
+    final confirmed = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to log out?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
     );
+
+    if (confirmed == true && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    }
   }
 
   @override
@@ -137,42 +162,20 @@ class _DashboardPageState extends State<DashboardPage> {
           IconButton(
             icon: const Icon(Icons.headset_mic),
             onPressed: () {
-              Navigator.pushNamed(context, Routes.profile);
-            },
-          ),
-          const SizedBox(width: 16), // Adds space between the icons
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final confirmed = await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Logout"),
-                  content: const Text("Are you sure you want to log out?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text("Cancel"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text("Logout"),
-                    ),
-                  ],
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BaseLayout(initialIndex: 4),
                 ),
               );
-
-              if (confirmed == true && mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              }
             },
           ),
-          const SizedBox(width: 8), // Optional: padding at the end of actions
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+          const SizedBox(width: 8),
         ],
-
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _userProfileFuture,
@@ -218,18 +221,16 @@ class _DashboardPageState extends State<DashboardPage> {
                   const SizedBox(height: 15),
                   const QuickActionsGrid(),
                   const SizedBox(height: 20),
-                  AdCarousel(ads: _ads),
-                  const SizedBox(height: 20),
+                  if (_showBanner && _ads.isNotEmpty) ...[
+                    AdCarousel(ads: _ads),
+                    const SizedBox(height: 20),
+                  ],
                   const TransactionList(),
                 ],
               ),
             ),
           );
         },
-      ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _selectedIndex,
-        onTabSelected: _onTabSelected,
       ),
     );
   }

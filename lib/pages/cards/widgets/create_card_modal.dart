@@ -42,7 +42,8 @@ void showCreateCardModal(BuildContext context, VirtualCardController controller,
                 }
 
                 Navigator.pop(context);
-                final result = await controller.createVirtualCard(cardPin: pin);
+                // Fixed: Added the required context parameter
+                final result = await controller.createVirtualCard(cardPin: pin, context: context);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
                 }

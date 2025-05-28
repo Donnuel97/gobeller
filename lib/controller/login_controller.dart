@@ -41,8 +41,6 @@ class LoginController with ChangeNotifier {
         };
       }
 
-      // ...existing code...
-      // Replace the old username/password use with finalUsername/finalPassword
       final body = {
         'username': finalUsername,
         'password': finalPassword,
@@ -57,7 +55,7 @@ class LoginController with ChangeNotifier {
       };
 
       final response = await ApiService.postRequest(endpoint, body, extraHeaders: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       final bool status = response['status'] == true;
       final String message = (response['message'] ?? '').toString().trim();
@@ -74,8 +72,8 @@ class LoginController with ChangeNotifier {
         }
 
         await prefs.setString('auth_token', token);
-        await prefs.setString('saved_username', finalUsername); // ensure username is saved
-        await prefs.setString('saved_password', finalPassword); // 💾 store password (optional)
+        await prefs.setString('saved_username', finalUsername);
+        await prefs.setString('saved_password', finalPassword);
 
         final profile = data['profile'];
         if (profile != null) {
@@ -86,14 +84,24 @@ class LoginController with ChangeNotifier {
 
         return {'success': true, 'message': '✅ Login successful!'};
       } else {
-        return {'success': false, 'message': message.isNotEmpty ? message : '❌ Login failed.'};
+        return {
+          'success': false,
+          'message': message.isNotEmpty ? message : '❌ Login failed.'
+        };
       }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+        '⏱️ The request took too long. Please check your internet connection and try again.'
+      };
     } catch (e) {
       return {'success': false, 'message': '❌ Unexpected error: $e'};
     } finally {
       _setLoading(false);
     }
   }
+
 
 
   void _setLoading(bool val) {

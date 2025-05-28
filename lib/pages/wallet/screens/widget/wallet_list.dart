@@ -31,7 +31,10 @@ class WalletList extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       itemCount: wallets.length,
       itemBuilder: (context, index) {
+
         var wallet = wallets[index];
+        print(wallet); // Add this inside itemBuilder
+
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 3,
@@ -42,18 +45,35 @@ class WalletList extends StatelessWidget {
               backgroundColor: Colors.blueAccent,
               child: const Text('W', style: TextStyle(color: Colors.white)),
             ),
-            title: Text(
-              wallet["name"] ?? "Unknown Bank",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  wallet["type"] ?? "Unknown Type",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                Text(
+                  wallet["name"] ?? "Unknown Type",
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "Balance: ${wallet["balance"] ?? "N/A"}",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                Text(
+                  "Account No: ${wallet['wallet_number'] ?? "Unavailable"}",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
             ),
-            subtitle: Text(
-              "Balance: ${wallet["balance"] ?? "N/A"}",
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
+
             trailing: const Icon(Icons.chevron_right),
           ),
         );
