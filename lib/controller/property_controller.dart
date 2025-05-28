@@ -327,19 +327,59 @@ class PropertyController with ChangeNotifier {
       final headers = {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
       };
 
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
-      debugPrint("📜 Property Subscription History Response: $response");
+      
+      debugPrint("\n📜 Property Subscription Details:");
+      debugPrint("Status: ${response['status']}");
+      debugPrint("Message: ${response['message']}");
 
-      if (response['status'] == true) {
-        return response['data'] as Map<String, dynamic>;
-      } else {
-        debugPrint("❌ Failed to fetch subscription history: ${response['message']}");
-        return null;
+      if (response['status'] == true && response['data'] != null) {
+        final data = response['data'] as Map<String, dynamic>;
+        
+        // Print main subscription details
+        debugPrint("\nSubscription Info:");
+        debugPrint("ID: ${data['id']}");
+        debugPrint("Property: ${data['name_referenced']}");
+        debugPrint("Quantity: ${data['quantity']} ${data['uom']}");
+        debugPrint("Status: ${data['status']?['label'] ?? 'Unknown'}");
+        
+        // Print financial details
+        final currency = data['currency']?['symbol'] ?? '₦';
+        debugPrint("\nFinancial Details:");
+        debugPrint("Expected Amount: $currency${data['expected_amount']}");
+        debugPrint("Paid Amount: $currency${data['paid_amount']}");
+        debugPrint("Balance: $currency${data['balance_amount']}");
+        debugPrint("Interest Rate: ${data['interest_referenced']}%");
+        
+        // Print payment details
+        debugPrint("\nPayment Schedule:");
+        debugPrint("Payment Method: ${data['preferred_payment_option']}");
+        debugPrint("Payment Cycle: ${data['payment_cycle_referenced']}");
+        debugPrint("Start Date: ${data['start_date']}");
+        debugPrint("First Payment: ${data['first_payment_date']}");
+        debugPrint("Next Payment: ${data['next_payment_date']}");
+        debugPrint("End Date: ${data['actual_end_date']}");
+        debugPrint("Extended End Date: ${data['extended_end_date']}");
+        
+        // Print property details if available
+        if (data['property'] != null) {
+          debugPrint("\nProperty Details:");
+          debugPrint("Property Name: ${data['property']['name']}");
+          debugPrint("Category: ${data['property']?['property_category']?['label'] ?? 'Unknown'}");
+          debugPrint("Description: ${data['property']['description']}");
+        }
+        
+        return data;
       }
+      
+      // If we reach here, there was an error in the response
+      debugPrint("\n❌ Error: ${response['message']}");
+      return null;
     } catch (e) {
-      debugPrint("❌ Error fetching subscription history: $e");
+      debugPrint("\n❌ Error fetching subscription history: $e");
       return null;
     }
   }

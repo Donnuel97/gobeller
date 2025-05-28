@@ -456,292 +456,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Modified showLinkKycDialog to handle wallet fallback
-  // void _showLinkKycDialog(Map<String, dynamic> profileData, List<Map<String, dynamic>> walletList, bool hasWallet) async {
-  //   final response = await KycVerificationController.fetchKycVerifications();
-  //   final kycVerifications = response;
-  //
-  //   final List<String> allIdTypes = ['nin', 'bvn', 'passport-number'];
-  //   List<String> availableIdTypes = [];
-  //
-  //   if (kycVerifications == null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Unable to retrieve KYC verifications')),
-  //     );
-  //     return;
-  //   }
-  //
-  //   // Show all types if empty or null data
-  //   if (kycVerifications.isEmpty) {
-  //     availableIdTypes = allIdTypes;
-  //   } else {
-  //     final List<String> usedTypes = kycVerifications
-  //         .map((e) => (e['documentType'] as String).toUpperCase())
-  //         .toList();
-  //
-  //     if (usedTypes.contains('NIN') && usedTypes.contains('BVN')) {
-  //       availableIdTypes = ['passport-number'];
-  //     } else {
-  //       availableIdTypes = allIdTypes
-  //           .where((id) => !usedTypes.contains(id.toUpperCase()))
-  //           .toList();
-  //     }
-  //   }
-  //
-  //   // Ensure _selectedIdType is a valid option, otherwise reset to null
-  //   if (!availableIdTypes.contains(_selectedIdType)) {
-  //     _selectedIdType = null;
-  //   }
-  //
-  //   // Prepare identifier options based on wallet availability
-  //   List<String> identifierOptions = [];
-  //   String identifierLabel = '';
-  //
-  //   if (hasWallet) {
-  //     identifierOptions = walletList
-  //         .map((wallet) => wallet['wallet_number'] ?? wallet['wallet_uuid'] ?? '')
-  //         .where((id) => id.isNotEmpty)
-  //         .cast<String>()
-  //         .toList();
-  //     identifierLabel = 'Wallet';
-  //   } else {
-  //     // Use profile ID as fallback
-  //     final profileId = profileData['id']?.toString();
-  //     if (profileId != null && profileId.isNotEmpty) {
-  //       identifierOptions = [profileId];
-  //       identifierLabel = 'Profile ID';
-  //     }
-  //   }
-  //
-  //   // Reset selected identifier if it's not valid for current options
-  //   if (!identifierOptions.contains(_selectedWalletIdentifier)) {
-  //     _selectedWalletIdentifier = identifierOptions.isNotEmpty ? identifierOptions.first : null;
-  //   }
-  //
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return Dialog(
-  //         shape: RoundedRectangleBorder(
-  //           borderRadius: BorderRadius.circular(12),
-  //         ),
-  //         child: Padding(
-  //           padding: const EdgeInsets.all(16.0),
-  //           child: SingleChildScrollView(
-  //             child: Column(
-  //               mainAxisSize: MainAxisSize.min,
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Center(
-  //                   child: Text(
-  //                     "Link KYC Identity ID",
-  //                     style: TextStyle(
-  //                       fontSize: 20,
-  //                       fontWeight: FontWeight.bold,
-  //                       color: Theme.of(context).primaryColor,
-  //                     ),
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 20),
-  //
-  //                 // Show info message if using profile ID
-  //                 if (!hasWallet)
-  //                   Container(
-  //                     padding: const EdgeInsets.all(12),
-  //                     margin: const EdgeInsets.only(bottom: 16),
-  //                     decoration: BoxDecoration(
-  //                       color: Colors.orange.withOpacity(0.1),
-  //                       border: Border.all(color: Colors.orange.withOpacity(0.3)),
-  //                       borderRadius: BorderRadius.circular(8),
-  //                     ),
-  //                     child: Row(
-  //                       children: [
-  //                         Icon(Icons.info_outline, color: Colors.orange, size: 20),
-  //                         const SizedBox(width: 8),
-  //                         Expanded(
-  //                           child: Text(
-  //                             'No wallet found. Using Profile ID for KYC verification.',
-  //                             style: TextStyle(
-  //                               fontSize: 14,
-  //                               color: Colors.orange[800],
-  //                             ),
-  //                           ),
-  //                         ),
-  //                       ],
-  //                     ),
-  //                   ),
-  //
-  //                 // ID Type Dropdown
-  //                 DropdownButtonFormField<String>(
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'ID Type',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                   value: _selectedIdType,
-  //                   items: availableIdTypes
-  //                       .map((type) => DropdownMenuItem<String>(
-  //                     value: type,
-  //                     child: Text(type.toUpperCase()),
-  //                   ))
-  //                       .toList(),
-  //                   onChanged: (value) {
-  //                     setState(() {
-  //                       _selectedIdType = value;
-  //                     });
-  //                   },
-  //                 ),
-  //                 const SizedBox(height: 12),
-  //
-  //                 // ID Value
-  //                 TextFormField(
-  //                   controller: _idValueController,
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'ID Value',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 12),
-  //
-  //                 // Identifier Dropdown (Wallet or Profile ID)
-  //                 DropdownButtonFormField<String>(
-  //                   isExpanded: true,
-  //                   decoration: InputDecoration(
-  //                     labelText: identifierLabel,
-  //                     border: const OutlineInputBorder(),
-  //                   ),
-  //                   value: _selectedWalletIdentifier,
-  //                   items: identifierOptions
-  //                       .map((id) => DropdownMenuItem<String>(
-  //                     value: id,
-  //                     child: Text(
-  //                       id,
-  //                       overflow: TextOverflow.ellipsis,
-  //                     ),
-  //                   ))
-  //                       .toList(),
-  //                   onChanged: identifierOptions.length > 1
-  //                       ? (value) {
-  //                     setState(() {
-  //                       _selectedWalletIdentifier = value;
-  //                     });
-  //                   }
-  //                       : null,
-  //                 ),
-  //
-  //                 const SizedBox(height: 12),
-  //
-  //                 // Transaction PIN
-  //                 TextFormField(
-  //                   controller: _transactionPinController,
-  //                   obscureText: true,
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'Transaction PIN',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                   inputFormatters: [
-  //                     FilteringTextInputFormatter.digitsOnly,
-  //                     LengthLimitingTextInputFormatter(4),
-  //                   ],
-  //                 ),
-  //                 const SizedBox(height: 20),
-  //
-  //                 // Buttons Row
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     TextButton(
-  //                       onPressed: () {
-  //                         Navigator.of(context).pop();
-  //                       },
-  //                       child: Text(
-  //                         'Cancel',
-  //                         style: TextStyle(
-  //                           color: Colors.grey[600],
-  //                           fontWeight: FontWeight.bold,
-  //                         ),
-  //                       ),
-  //                     ),
-  //                     ElevatedButton(
-  //                       onPressed: _loading
-  //                           ? null
-  //                           : () async {
-  //                         if (_selectedIdType == null ||
-  //                             _idValueController.text.isEmpty ||
-  //                             _selectedWalletIdentifier == null ||
-  //                             _transactionPinController.text.isEmpty) {
-  //                           ScaffoldMessenger.of(context).showSnackBar(
-  //                             const SnackBar(content: Text("Please fill all fields")),
-  //                           );
-  //                           return;
-  //                         }
-  //
-  //                         setState(() {
-  //                           _loading = true;
-  //                         });
-  //
-  //                         final result = await ProfileController.linkKycVerification(
-  //                           idType: _selectedIdType!,
-  //                           idValue: _idValueController.text,
-  //                           walletIdentifier: _selectedWalletIdentifier!,
-  //                           transactionPin: _transactionPinController.text,
-  //                         );
-  //
-  //                         showSnackbar(result['message'] ?? 'Operation completed');
-  //
-  //                         if (result['success'] == true) {
-  //                           final updatedVerifications = await KycVerificationController.fetchKycVerifications();
-  //                           if (updatedVerifications != null) {
-  //                             final prefs = await SharedPreferences.getInstance();
-  //                             await prefs.setString('cached_kyc_data', json.encode(updatedVerifications));
-  //                           }
-  //                         }
-  //
-  //                         setState(() {
-  //                           _loading = false;
-  //                         });
-  //
-  //                         Navigator.of(context).pop();
-  //                       },
-  //                       style: ElevatedButton.styleFrom(
-  //                         backgroundColor: Theme.of(context).primaryColor,
-  //                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-  //                         shape: RoundedRectangleBorder(
-  //                           borderRadius: BorderRadius.circular(8),
-  //                         ),
-  //                       ),
-  //                       child: _loading
-  //                           ? const SizedBox(
-  //                         height: 20,
-  //                         width: 20,
-  //                         child: CircularProgressIndicator(
-  //                           strokeWidth: 2,
-  //                           color: Colors.white,
-  //                         ),
-  //                       )
-  //                           : const Text(
-  //                         'Link',
-  //                         style: TextStyle(
-  //                           fontSize: 16,
-  //                           fontWeight: FontWeight.bold,
-  //                           color: Colors.white,
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
-  void _showLinkKycDialog(
-      Map<String, dynamic> profileData,
-      List<Map<String, dynamic>> walletList,
-      bool hasWallet,
-      ) async {
+  void _showLinkKycDialog(Map<String, dynamic> profileData, List<Map<String, dynamic>> walletList, bool hasWallet) async {
     final response = await KycVerificationController.fetchKycVerifications();
     final kycVerifications = response;
 
@@ -749,12 +464,14 @@ class _ProfilePageState extends State<ProfilePage> {
     List<String> availableIdTypes = [];
 
     if (kycVerifications == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to retrieve KYC verifications')),
       );
       return;
     }
 
+    // Show all types if empty or null data
     if (kycVerifications.isEmpty) {
       availableIdTypes = allIdTypes;
     } else {
@@ -771,260 +488,169 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
 
+    // Ensure _selectedIdType is a valid option, otherwise reset to null
     if (!availableIdTypes.contains(_selectedIdType)) {
       _selectedIdType = null;
     }
 
-    List<String> identifierOptions = [];
-    String identifierLabel = '';
-
-    if (hasWallet) {
-      identifierOptions = walletList
-          .map((wallet) => wallet['wallet_number'] ?? wallet['wallet_uuid'] ?? '')
-          .where((id) => id.isNotEmpty)
-          .cast<String>()
-          .toList();
-      identifierLabel = 'Wallet';
-    } else {
-      final profileId = profileData['id']?.toString();
-      if (profileId != null && profileId.isNotEmpty) {
-        identifierOptions = [profileId];
-        identifierLabel = 'Profile ID';
-      }
-    }
-
-    if (!identifierOptions.contains(_selectedWalletIdentifier)) {
-      _selectedWalletIdentifier = identifierOptions.isNotEmpty ? identifierOptions.first : null;
+    // Get user ID from profile data
+    final userId = profileData['id']?.toString();
+    if (userId == null || userId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User ID not found')),
+      );
+      return;
     }
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: Text(
-                              "Link KYC Identity ID",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          if (!hasWallet)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.1),
-                                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'No wallet found. Using User ID for KYC verification.',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.orange[800],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'ID Type',
-                              border: OutlineInputBorder(),
-                            ),
-                            value: _selectedIdType,
-                            items: availableIdTypes
-                                .map((type) => DropdownMenuItem<String>(
-                              value: type,
-                              child: Text(type.toUpperCase()),
-                            ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedIdType = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 12),
-
-                          TextFormField(
-                            controller: _idValueController,
-                            decoration: const InputDecoration(
-                              labelText: 'ID Value',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              labelText: identifierLabel,
-                              border: const OutlineInputBorder(),
-                            ),
-                            value: _selectedWalletIdentifier,
-                            items: identifierOptions
-                                .map((id) => DropdownMenuItem<String>(
-                              value: id,
-                              child: Text(id, overflow: TextOverflow.ellipsis),
-                            ))
-                                .toList(),
-                            onChanged: identifierOptions.length > 1
-                                ? (value) {
-                              setState(() {
-                                _selectedWalletIdentifier = value;
-                              });
-                            }
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-
-                          TextFormField(
-                            controller: _transactionPinController,
-                            obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Transaction PIN',
-                              border: OutlineInputBorder(),
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(4),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              ElevatedButton(
-                                onPressed: _loading
-                                    ? null
-                                    : () async {
-                                  if (_selectedIdType == null ||
-                                      _idValueController.text.isEmpty ||
-                                      _selectedWalletIdentifier == null ||
-                                      _transactionPinController.text.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Please fill all fields")),
-                                    );
-                                    return;
-                                  }
-
-                                  setState(() {
-                                    _loading = true;
-                                  });
-
-                                  final result = await ProfileController.linkKycVerification(
-                                    idType: _selectedIdType!,
-                                    idValue: _idValueController.text,
-                                    walletIdentifier: _selectedWalletIdentifier!,
-                                    transactionPin: _transactionPinController.text,
-                                  );
-
-                                  showSnackbar(result['message'] ?? 'Operation completed');
-
-                                  if (result['success'] == true) {
-                                    final updatedVerifications =
-                                    await KycVerificationController.fetchKycVerifications();
-                                    if (updatedVerifications != null) {
-                                      final prefs = await SharedPreferences.getInstance();
-                                      await prefs.setString('cached_kyc_data', json.encode(updatedVerifications));
-                                    }
-                                  }
-
-                                  setState(() {
-                                    _loading = false;
-                                  });
-
-                                  Navigator.of(context).pop();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
-                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: _loading
-                                    ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                                    : const Text(
-                                  'Link',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                  Center(
+                    child: Text(
+                      "Link KYC Identity ID",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
 
-                  // Overlay Loader
-                  if (_loading)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: CircularProgressIndicator(),
+                  // ID Type Dropdown
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'ID Type',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: _selectedIdType,
+                    items: availableIdTypes
+                        .map((type) => DropdownMenuItem<String>(
+                          value: type,
+                          child: Text(type.toUpperCase()),
+                        ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedIdType = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ID Value
+                  TextFormField(
+                    controller: _idValueController,
+                    decoration: const InputDecoration(
+                      labelText: 'ID Value',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Transaction PIN
+                  TextFormField(
+                    controller: _transactionPinController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Transaction PIN',
+                      border: OutlineInputBorder(),
+                      helperText: 'Enter your 4-digit transaction PIN',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
+                      onPressed: () async {
+                        if (_selectedIdType == null || 
+                            _idValueController.text.isEmpty ||
+                            _transactionPinController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please fill in all fields')),
+                          );
+                          return;
+                        }
+
+                        if (_transactionPinController.text.length != 4) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Transaction PIN must be 4 digits')),
+                          );
+                          return;
+                        }
+
+                        setState(() {
+                          _loading = true;
+                        });
+
+                        try {
+                          final result = await KycVerificationController.verifyKycWithUserId(
+                            userId: userId,
+                            idType: _selectedIdType!,
+                            idValue: _idValueController.text,
+                            transactionPin: _transactionPinController.text,
+                          );
+
+                          if (!mounted) return;
+
+                          if (result != null) {
+                            Navigator.of(context).pop(); // Close dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('KYC verification successful')),
+                            );
+                            // Refresh the profile page
+                            _loadCachedData();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('KYC verification failed')),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _loading = false;
+                            });
+                          }
+                        }
+                      },
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Submit'),
                     ),
+                  ),
                 ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -1058,299 +684,6 @@ class _ProfilePageState extends State<ProfilePage> {
         content: Text(message),
         duration: const Duration(seconds: 3),
       ),
-    );
-  }
-
-
-  // void _showLinkKycDialog(Map<String, dynamic> profileData, List<Map<String, dynamic>> walletList) async {
-  //   final response = await KycVerificationController.fetchKycVerifications();
-  //   final kycVerifications = response;
-  //
-  //   final List<String> allIdTypes = ['nin', 'bvn', 'passport-number']; // Fixed the ID type name
-  //   List<String> availableIdTypes = [];
-  //
-  //   if (kycVerifications == null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Unable to retrieve KYC verifications')),
-  //     );
-  //     return;
-  //   }
-  //
-  //   // Show all types if empty or null data
-  //   if (kycVerifications.isEmpty) {
-  //     availableIdTypes = allIdTypes;
-  //   } else {
-  //     final List<String> usedTypes = kycVerifications
-  //         .map((e) => (e['documentType'] as String).toUpperCase())
-  //         .toList();
-  //
-  //     if (usedTypes.contains('NIN') && usedTypes.contains('BVN')) {
-  //       availableIdTypes = ['passport-number'];
-  //     } else {
-  //       availableIdTypes = allIdTypes
-  //           .where((id) => !usedTypes.contains(id.toUpperCase()))
-  //           .toList();
-  //     }
-  //   }
-  //
-  //   // Ensure _selectedIdType is a valid option, otherwise reset to null
-  //   if (!availableIdTypes.contains(_selectedIdType)) {
-  //     _selectedIdType = null;
-  //   }
-  //
-  //   final List<String> walletIdentifiers = walletList
-  //       .map((wallet) => wallet['wallet_number'] ?? wallet['wallet_uuid'] ?? '')
-  //       .where((id) => id.isNotEmpty)
-  //       .cast<String>()
-  //       .toList();
-  //
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return Dialog(
-  //         shape: RoundedRectangleBorder(
-  //           borderRadius: BorderRadius.circular(12),
-  //         ),
-  //         child: Padding(
-  //           padding: const EdgeInsets.all(16.0),
-  //           child: SingleChildScrollView(
-  //             child: Column(
-  //               mainAxisSize: MainAxisSize.min,
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Center(
-  //                   child: Text(
-  //                     "Link KYC Identity ID",
-  //                     style: TextStyle(
-  //                       fontSize: 20,
-  //                       fontWeight: FontWeight.bold,
-  //                       color: Theme.of(context).primaryColor,
-  //                     ),
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 20),
-  //
-  //                 // ID Type Dropdown
-  //                 DropdownButtonFormField<String>(
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'ID Type',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                   value: _selectedIdType,
-  //                   items: availableIdTypes
-  //                       .map((type) => DropdownMenuItem<String>(
-  //                     value: type,
-  //                     child: Text(type.toUpperCase()),
-  //                   ))
-  //                       .toList(),
-  //                   onChanged: (value) {
-  //                     setState(() {
-  //                       _selectedIdType = value;
-  //                     });
-  //                   },
-  //                 ),
-  //                 const SizedBox(height: 12),
-  //
-  //                 // ID Value
-  //                 TextFormField(
-  //                   controller: _idValueController,
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'ID Value',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 12),
-  //
-  //                 // Wallet Identifier Dropdown
-  //                 DropdownButtonFormField<String>(
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'Wallet',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                   value: _selectedWalletIdentifier,
-  //                   items: walletIdentifiers
-  //                       .map((id) => DropdownMenuItem<String>(
-  //                     value: id,
-  //                     child: Text(id),
-  //                   ))
-  //                       .toList(),
-  //                   onChanged: (value) {
-  //                     setState(() {
-  //                       _selectedWalletIdentifier = value;
-  //                     });
-  //                   },
-  //                 ),
-  //                 const SizedBox(height: 12),
-  //
-  //                 // Transaction PIN
-  //                 TextFormField(
-  //                   controller: _transactionPinController,
-  //                   obscureText: true,
-  //                   decoration: const InputDecoration(
-  //                     labelText: 'Transaction PIN',
-  //                     border: OutlineInputBorder(),
-  //                   ),
-  //                   inputFormatters: [
-  //                     FilteringTextInputFormatter.digitsOnly,
-  //                     LengthLimitingTextInputFormatter(4),
-  //                   ],
-  //                 ),
-  //                 const SizedBox(height: 20),
-  //
-  //                 // Buttons Row
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     TextButton(
-  //                       onPressed: () {
-  //                         Navigator.of(context).pop();
-  //                       },
-  //                       child: Text(
-  //                         'Cancel',
-  //                         style: TextStyle(
-  //                           color: Colors.grey[600],
-  //                           fontWeight: FontWeight.bold,
-  //                         ),
-  //                       ),
-  //                     ),
-  //                     ElevatedButton(
-  //                       onPressed: _loading
-  //                           ? null
-  //                           : () async {
-  //                         if (_selectedIdType == null ||
-  //                             _idValueController.text.isEmpty ||
-  //                             _selectedWalletIdentifier == null ||
-  //                             _transactionPinController.text.isEmpty) {
-  //                           ScaffoldMessenger.of(context).showSnackBar(
-  //                             const SnackBar(content: Text("Please fill all fields")),
-  //                           );
-  //                           return;
-  //                         }
-  //
-  //                         setState(() {
-  //                           _loading = true;
-  //                         });
-  //
-  //                         final result = await ProfileController.linkKycVerification(
-  //                           idType: _selectedIdType!,
-  //                           idValue: _idValueController.text,
-  //                           walletIdentifier: _selectedWalletIdentifier!,
-  //                           transactionPin: _transactionPinController.text,
-  //                         );
-  //
-  //                         showSnackbar(result['message'] ?? 'Operation completed');
-  //
-  //                         if (result['success'] == true) {
-  //                           final updatedVerifications = await KycVerificationController.fetchKycVerifications();
-  //                           if (updatedVerifications != null) {
-  //                             final prefs = await SharedPreferences.getInstance();
-  //                             await prefs.setString('cached_kyc_data', json.encode(updatedVerifications));
-  //                           }
-  //                         }
-  //
-  //                         setState(() {
-  //                           _loading = false;
-  //                         });
-  //
-  //                         Navigator.of(context).pop();
-  //
-  //                       },
-  //                       style: ElevatedButton.styleFrom(
-  //                         backgroundColor: Theme.of(context).primaryColor,
-  //                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-  //                         shape: RoundedRectangleBorder(
-  //                           borderRadius: BorderRadius.circular(8),
-  //                         ),
-  //                       ),
-  //                       child: _loading
-  //                           ? const SizedBox(
-  //                         height: 20,
-  //                         width: 20,
-  //                         child: CircularProgressIndicator(
-  //                           strokeWidth: 2,
-  //                           color: Colors.white,
-  //                         ),
-  //                       )
-  //                           : const Text(
-  //                         'Link',
-  //                         style: TextStyle(
-  //                           fontSize: 16,
-  //                           fontWeight: FontWeight.bold,
-  //                           color: Colors.white,
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
-
-
-   // make sure you have this import at the top
-  Widget _buildLinkKycForm(List<String> idTypes, List<String> walletIds) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DropdownButtonFormField<String>(
-          value: _selectedIdType,
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedIdType = newValue!;
-            });
-          },
-          decoration: const InputDecoration(
-            labelText: 'ID Type',
-          ),
-          items: idTypes.map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
-        ),
-        TextField(
-          controller: _idValueController,
-          decoration: const InputDecoration(
-            labelText: 'ID Value',
-          ),
-        ),
-        DropdownButtonFormField<String>(
-          value: _selectedWalletIdentifier,
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedWalletIdentifier = newValue!;
-            });
-          },
-          decoration: const InputDecoration(
-            labelText: 'Wallet Identifier',
-          ),
-          items: walletIds.map((id) {
-            return DropdownMenuItem<String>(
-              value: id,
-              child: Text(id),
-            );
-          }).toList(),
-        ),
-        TextField(
-          controller: _transactionPinController,
-          decoration: const InputDecoration(
-            labelText: 'Transaction Pin',
-            hintText: 'Enter your 4-digit pin',
-          ),
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            LengthLimitingTextInputFormatter(4), // limit to 4 characters
-            FilteringTextInputFormatter.digitsOnly, // only allow numbers
-          ],
-        ),
-      ],
     );
   }
 

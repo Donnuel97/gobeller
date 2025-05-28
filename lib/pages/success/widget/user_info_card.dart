@@ -80,23 +80,23 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
     if (!mounted) return;
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final settingsJson = prefs.getString('appSettingsData');
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');
 
       if (!mounted) return;
 
-      if (settingsJson != null) {
-        final Map<String, dynamic> settings = json.decode(settingsJson);
-        final data = settings['data'] ?? {};
+    if (settingsJson != null) {
+      final Map<String, dynamic> settings = json.decode(settingsJson);
+      final data = settings['data'] ?? {};
 
-        final primaryColorHex = data['customized-app-primary-color'];
-        final secondaryColorHex = data['customized-app-secondary-color'];
+      final primaryColorHex = data['customized-app-primary-color'];
+      final secondaryColorHex = data['customized-app-secondary-color'];
 
         if (mounted) {
-          setState(() {
-            _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
-            _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
-          });
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+        _secondaryColor = Color(int.parse(secondaryColorHex.replaceAll('#', '0xFF')));
+      });
         }
       }
     } catch (e) {
@@ -108,9 +108,9 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
     if (!mounted) return false;
     
     try {
-      String? token = await UserController.getToken();
+    String? token = await UserController.getToken();
       if (!mounted) return false;
-      return token != null && token.isNotEmpty;
+    return token != null && token.isNotEmpty;
     } catch (e) {
       debugPrint('Error checking token validity: $e');
       return false;
@@ -143,7 +143,7 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
       child: SlideTransition(
         position: _slideAnimation,
         child: Container(
-          width: double.infinity,
+      width: double.infinity,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -186,7 +186,7 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                   child: Container(
                     width: 140,
                     height: 140,
-                    decoration: BoxDecoration(
+      decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withOpacity(0.1),
                     ),
@@ -195,9 +195,9 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                 // Content
                 Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -212,7 +212,7 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
+          Text(
                                 widget.username,
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -222,12 +222,12 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                               ),
                             ],
                           ),
-                          if (!widget.hasWallet)
+          if (!widget.hasWallet)
                             ElevatedButton.icon(
                               icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
-                              label: const Text("Create Wallet"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
+                label: const Text("Create Wallet"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
                                 foregroundColor: _primaryColor ?? Colors.blue,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -235,21 +235,21 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              onPressed: () async {
-                                bool isValid = await _isTokenValid();
-                                if (isValid) {
-                                  Navigator.pushNamed(context, Routes.wallet);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Session expired. Please log in again."),
-                                    ),
-                                  );
-                                  Navigator.pushReplacementNamed(context, Routes.dashboard);
-                                }
-                              },
-                            ),
+                ),
+                onPressed: () async {
+                  bool isValid = await _isTokenValid();
+                  if (isValid) {
+                    Navigator.pushNamed(context, Routes.wallet);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Session expired. Please log in again."),
+                      ),
+                    );
+                    Navigator.pushReplacementNamed(context, Routes.dashboard);
+                  }
+                },
+              ),
                         ],
                       ),
                       const SizedBox(height: 32),
@@ -260,8 +260,8 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                           children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
+              children: [
+                Text(
                                   "Available Balance",
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.8),
@@ -270,9 +270,9 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
-                                  children: [
-                                    Text(
-                                      _isBalanceHidden ? "****" : "₦$formattedBalance",
+              children: [
+                Text(
+                  _isBalanceHidden ? "****" : "₦$formattedBalance",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 32,
@@ -281,21 +281,21 @@ class _UserInfoCardState extends State<UserInfoCard> with SingleTickerProviderSt
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: Icon(
-                                        _isBalanceHidden ? Icons.visibility_off : Icons.visibility,
+                IconButton(
+                  icon: Icon(
+                    _isBalanceHidden ? Icons.visibility_off : Icons.visibility,
                                         color: Colors.white70,
                                         size: 20,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _isBalanceHidden = !_isBalanceHidden;
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isBalanceHidden = !_isBalanceHidden;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
                             ),
                           ],
                         ),

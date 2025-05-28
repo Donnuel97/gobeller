@@ -6,6 +6,57 @@ import 'package:shared_preferences/shared_preferences.dart';
 class KycVerificationController {
   static const _cacheKey = 'cached_kyc_verifications';
 
+  /// Verify KYC using user ID
+  static Future<Map<String, dynamic>?> verifyKycWithUserId({
+    required String userId,
+    required String idType,
+    required String idValue,
+    required String transactionPin,
+  }) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('auth_token');
+
+      if (token == null) {
+        debugPrint("❌ No authentication token found. Please login again.");
+        return null;
+      }
+
+      final extraHeaders = {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      };
+
+      final body = {
+        "id_type": idType,
+        "id_value": idValue,
+        "customer_wallet_number_or_uuid": userId,
+        "transaction_pin": transactionPin,
+      };
+
+      debugPrint("🔑 Sending KYC verification request for user: $userId");
+      debugPrint("ID Type: $idType");
+
+      final response = await ApiService.postRequest(
+        "/customers/kyc-verifications/verify",
+        body,
+        extraHeaders: extraHeaders,
+      );
+
+      debugPrint("🔹 KYC Verification Response: $response");
+
+      if (response["status"] == true) {
+        return response["data"] as Map<String, dynamic>;
+      } else {
+        debugPrint("⚠️ KYC verification failed: ${response["message"]}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("❌ KYC Verification Error: $e");
+      return null;
+    }
+  }
+
   // Fetch All KYC Verifications
   static Future<List<Map<String, dynamic>>?> fetchKycVerifications() async {
     try {
