@@ -38,7 +38,7 @@ class KycVerificationController {
       debugPrint("ID Type: $idType");
 
       final response = await ApiService.postRequest(
-        "/customers/kyc-verifications/verify",
+        "/customers/kyc-verifications/link/verified",
         body,
         extraHeaders: extraHeaders,
       );

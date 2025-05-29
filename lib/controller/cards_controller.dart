@@ -19,13 +19,26 @@ class VirtualCardController with ChangeNotifier {
   String _errorMessage = '';
   String get errorMessage => _errorMessage;
 
-  // New: Store card details by card ID
-  Map<String, Map<String, dynamic>> _cardDetails = {};
+  // Store card details by card ID with last fetch timestamp
+  final Map<String, Map<String, dynamic>> _cardDetails = {};
   Map<String, Map<String, dynamic>> get cardDetails => _cardDetails;
-// inside VirtualCardController
+
+  // Cache duration for card details (5 minutes)
+  static const cardDetailsCacheDuration = Duration(minutes: 5);
 
   Map<String, dynamic>? getCardById(String cardId) {
-    return _cardDetails[cardId];
+    final cardInfo = _cardDetails[cardId];
+    if (cardInfo == null) return null;
+
+    // Check if cache is expired
+    final lastFetched = DateTime.parse(cardInfo['_lastFetched'] ?? '2000-01-01');
+    if (DateTime.now().difference(lastFetched) > cardDetailsCacheDuration) {
+      // Cache expired, fetch fresh data
+      fetchCardBalanceDetails(cardId);
+      return null;
+    }
+
+    return cardInfo;
   }
 
   void setErrorMessage(String message) {
@@ -80,15 +93,19 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
+
   Future<void> fetchCardBalanceDetails(String cardId) async {
+    if (cardId.isEmpty) {
+      throw Exception("Card ID cannot be empty");
+    }
+
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
       final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
-        debugPrint("❌ No auth token found.");
-        return;
+        throw Exception("No auth token found");
       }
 
       final headers = {
@@ -98,106 +115,107 @@ class VirtualCardController with ChangeNotifier {
       };
 
       final endpoint = "/card-mgt/cards/virtual/$cardId/balance";
+      Map<String, dynamic> response;
 
-      Map<String, dynamic> response = await ApiService.getRequest(endpoint, extraHeaders: headers);
-
-      // Retry once if response is 401
-      if (response['statusCode'] == 401) {
-        debugPrint("🔁 Retrying fetch due to 401 Unauthorized...");
+      try {
         response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      } catch (e) {
+        if (e.toString().contains('403') || e.toString().contains('401')) {
+          debugPrint("🔄 Authentication error, attempting to refresh token...");
+          
+          // Try to refresh the token
+          final bool tokenRefreshed = await _refreshToken();
+          
+          if (tokenRefreshed) {
+            // Get the new token
+            final String? newToken = prefs.getString('auth_token');
+            if (newToken == null) throw Exception("Token refresh failed");
+            
+            // Update headers with new token
+            headers["Authorization"] = "Bearer $newToken";
+            
+            // Retry the request with new token
+            await Future.delayed(const Duration(milliseconds: 500));
+            response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+          } else {
+            throw Exception("Token refresh failed");
+          }
+        } else {
+          rethrow;
+        }
       }
 
       debugPrint("💳 Card Balance Response for $cardId: $response");
 
       if (response["status"] == true && response["data"] != null) {
-        double rawBalance = double.tryParse(response["data"]["balance"].toString()) ?? 0.0;
+        final data = response["data"];
+        double rawBalance = double.tryParse(data["balance"].toString()) ?? 0.0;
         double actualBalance = rawBalance / 100;
 
         _cardDetails[cardId] = {
-          "id": response["data"]["id"],
-          "name": response["data"]["name"],
-          "card_number": response["data"]["card_number"],
-          "masked_pan": response["data"]["masked_pan"],
-          "expiry": response["data"]["expiry"],
-          "cvv": response["data"]["cvv"],
-          "status": response["data"]["status"],
-          "type": response["data"]["type"],
-          "issuer": response["data"]["issuer"],
-          "currency": response["data"]["currency"],
+          "id": data["id"],
+          "name": data["name"],
+          "card_number": data["card_number"],
+          "masked_pan": data["masked_pan"],
+          "expiry": data["expiry"],
+          "cvv": data["cvv"],
+          "status": data["status"],
+          "type": data["type"],
+          "issuer": data["issuer"],
+          "currency": data["currency"],
           "balance": actualBalance.toStringAsFixed(2),
-          "balance_updated_at": response["data"]["balance_updated_at"],
-          "auto_approve": response["data"]["auto_approve"],
-          "address": response["data"]["address"],
-          "created_at": response["data"]["created_at"],
-          "updated_at": response["data"]["updated_at"],
-          "is_amount_locked": response["data"]["is_amount_locked"],
+          "balance_updated_at": data["balance_updated_at"],
+          "auto_approve": data["auto_approve"],
+          "address": data["address"],
+          "created_at": data["created_at"],
+          "updated_at": data["updated_at"],
+          "is_amount_locked": data["is_amount_locked"],
+          "_lastFetched": DateTime.now().toIso8601String(),
         };
+
+        notifyListeners();
       } else {
-        debugPrint("⚠️ Failed to fetch card details: ${response["message"]}");
+        final errorMsg = response["message"] ?? "Failed to fetch card details";
+        debugPrint("⚠️ Card balance fetch failed: $errorMsg");
+        throw Exception(errorMsg);
       }
     } catch (e) {
       debugPrint("❌ Error fetching card details: $e");
-    } finally {
-      notifyListeners();
+      throw Exception("Failed to fetch card details: $e");
     }
   }
 
+  Future<bool> _refreshToken() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? refreshToken = prefs.getString('refresh_token');
+      final String appId = prefs.getString('appId') ?? '';
 
-  // Future<void> fetchCardBalanceDetails(String cardId) async {
-  //   try {
-  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     final String? token = prefs.getString('auth_token');
-  //     final String appId = prefs.getString('appId') ?? '';
-  //
-  //     if (token == null) {
-  //       debugPrint("❌ No auth token found.");
-  //       return;
-  //     }
-  //
-  //     final headers = {
-  //       "Accept": "application/json",
-  //       "Authorization": "Bearer $token",
-  //       "AppID": appId,
-  //     };
-  //
-  //     final endpoint = "/card-mgt/cards/virtual/$cardId/balance";
-  //     final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
-  //
-  //     debugPrint("💳 Card Balance Response for $cardId: $response");
-  //
-  //     if (response["status"] == true && response["data"] != null) {
-  //       double rawBalance = double.tryParse(response["data"]["balance"].toString()) ?? 0.0;
-  //       double actualBalance = rawBalance / 100;
-  //
-  //       _cardDetails[cardId] = {
-  //         "id": response["data"]["id"],
-  //         "name": response["data"]["name"],
-  //         "card_number": response["data"]["card_number"],
-  //         "masked_pan": response["data"]["masked_pan"],
-  //         "expiry": response["data"]["expiry"],
-  //         "cvv": response["data"]["cvv"],
-  //         "status": response["data"]["status"],
-  //         "type": response["data"]["type"],
-  //         "issuer": response["data"]["issuer"],
-  //         "currency": response["data"]["currency"],
-  //         "balance": actualBalance.toStringAsFixed(2), // 👈 formatted balance
-  //         "balance_updated_at": response["data"]["balance_updated_at"],
-  //         "auto_approve": response["data"]["auto_approve"],
-  //         "address": response["data"]["address"],
-  //         "created_at": response["data"]["created_at"],
-  //         "updated_at": response["data"]["updated_at"],
-  //         "is_amount_locked": response["data"]["is_amount_locked"],
-  //       };
-  //     } else {
-  //       debugPrint("⚠️ Failed to fetch card details: ${response["message"]}");
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Error fetching card details: $e");
-  //   } finally {
-  //     notifyListeners();
-  //   }
-  // }
+      if (refreshToken == null) {
+        return false;
+      }
 
+      final headers = {
+        "Accept": "application/json",
+        "Authorization": "Bearer $refreshToken",
+        "AppID": appId,
+      };
+
+      const endpoint = "/auth/refresh-token";
+      final response = await ApiService.postRequest(endpoint, {}, extraHeaders: headers);
+
+      if (response["status"] == true && response["data"]?["token"] != null) {
+        // Save the new token
+        await prefs.setString('auth_token', response["data"]["token"]);
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint("❌ Error refreshing token: $e");
+      return false;
+    }
+  }
 
   Future<String> createVirtualCard({required String cardPin, required BuildContext context}) async {
     _isLoading = true;
@@ -243,6 +261,7 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
+
   /// Fetch wallets associated with the user
   Future<void> fetchWallets() async {
     try {
@@ -336,7 +355,6 @@ class VirtualCardController with ChangeNotifier {
     }
   }
 
-
   /// Adds funds to a virtual card using a source wallet and payment channel
   Future<String> addFundsToCard({
     required String cardId,
@@ -402,7 +420,6 @@ class VirtualCardController with ChangeNotifier {
     }
   }
 
-
   Future<Map<String, dynamic>> initiateCardFunding({
     required String sourceWalletNumberOrUuid,
     required double fundingAmount,
@@ -450,7 +467,6 @@ class VirtualCardController with ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   Future<String> processCardFunding({
     required String sourceWalletNumberOrUuid,

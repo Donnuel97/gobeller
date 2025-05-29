@@ -72,26 +72,27 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
-  VideoPlayerController? _videoController;
+  late VideoPlayerController _videoController;
 
   @override
   void initState() {
     super.initState();
-
-    _videoController = VideoPlayerController.asset("")
-      ..initialize().then((_) {
-        setState(() {});
-        _videoController!
-          ..setLooping(true)
-          ..setVolume(0)
-          ..play();
-      });
+    _initializeVideo();
     _loadPrimaryColorAndLogo();
+  }
+
+  Future<void> _initializeVideo() async {
+    _videoController = VideoPlayerController.asset('');
+    await _videoController.initialize();
+    _videoController.setLooping(true);
+    _videoController.setVolume(0.0);
+    _videoController.play();
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    _videoController.dispose();
     super.dispose();
   }
 
@@ -144,165 +145,170 @@ class _RegistrationPageState extends State<RegistrationPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (_videoController != null && _videoController!.value.isInitialized)
+          // Video Background
+          if (_videoController.value.isInitialized)
             FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: _videoController!.value.size.width,
-                height: _videoController!.value.size.height,
-                child: VideoPlayer(_videoController!),
+                width: _videoController.value.size.width,
+                height: _videoController.value.size.height,
+                child: VideoPlayer(_videoController),
               ),
-            )
-          else
-            // Container(color: Colors.black),
-            Container(color: _tertiaryColor?.withOpacity(1),),
+            ),
 
+          // White Overlay
           Container(
-            // color: const Color(0xCC051330),
-            // color: _tertiaryColor,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withOpacity(0.9),
+                  Colors.white.withOpacity(0.8),
+                ],
+              ),
+            ),
           ),
 
-
+          // Main Content
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: ConstUI.kMainPadding,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_logoUrl != null)
-                        Image.network(
-                          _logoUrl!,
-                          width: 128,
-                          height: 128,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                            if (loadingProgress == null) {
-                              return child;
-                            } else {
-                              return SizedBox(
-                                width: 128,
-                                height: 128,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                        (loadingProgress.expectedTotalBytes ?? 1)
-                                        : null,
-                                  ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_logoUrl != null)
+                      Image.network(
+                        _logoUrl!,
+                        width: 128,
+                        height: 128,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          } else {
+                            return SizedBox(
+                              width: 128,
+                              height: 128,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                      (loadingProgress.expectedTotalBytes ?? 1)
+                                      : null,
                                 ),
-                              );
-                            }
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Text(
-                                'Getting Data...',
-                                style: TextStyle(color: Colors.black, fontSize: 16),
                               ),
-                            ); // Show "Getting Data..." if image fails to load
-                          },
-                        ),
-                      const SizedBox(height: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Create Your Account",
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => Navigator.pushNamed(context, '/login'),
-                            child: const Text(
-                              "Already have an account? Login",
-                              style: TextStyle(color: Colors.black),
+                            );
+                          }
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Text(
+                              'Getting Data...',
+                              style: TextStyle(color: Colors.black, fontSize: 16),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      DropdownButtonFormField<String>(
-                        value: _selectedIdType,
-                        decoration: InputDecoration(
-                          labelText: "Select ID Type",
-                          labelStyle: const TextStyle(color: Colors.black),
-                          enabledBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.black),
-                          ),
-                          focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.black),
-                          ),
-                          border: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.black),
-                          ),
-                        ),
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(color: Colors.black),
-                        items: const [
-                          {"label": "Register with NIN", "value": "nin"},
-                          {"label": "Register with BVN", "value": "bvn"},
-                          {"label": "Register with Passport", "value": "passport-number"},
-                        ].map((item) {
-                          return DropdownMenuItem<String>(
-                            value: item["value"]!,
-                            child: Text(item["label"]!, style: const TextStyle(color: Colors.black)),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedIdType = value;
-                            _showIdInput = true;
-                            _showFullForm = false;
-                            _hasPopulatedFields = false;
-                          });
+                          ); // Show "Getting Data..." if image fails to load
                         },
                       ),
-                      const SizedBox(height: 20),
-
-
-                      if (_showIdInput) ...[
-                        TextFormField(
-                          controller: _idNumberController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: "Enter ID Number"),
-                          style: const TextStyle(color: Colors.black),
-                          validator: (value) =>
-                          value == null || value.isEmpty ? "ID number is required" : null,
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Create Your Account",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 10),
-
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_idNumberController.text.isNotEmpty) {
-                              ninController.verifyId(_idNumberController.text.trim(), _selectedIdType!);
-                            }
-                          },
-                          child: ninController.isVerifying
-                              ? const CircularProgressIndicator(color: Colors.black)
-                              : const Text('Verify'),
-                        ),
-                        const SizedBox(height: 10),
-
-                        if (ninController.verificationMessage.isNotEmpty)
-                          Text(
-                            ninController.verificationMessage,
-                            style: TextStyle(
-                              color: ninController.verificationMessage.contains('Success')
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/login'),
+                          child: const Text(
+                            "Already have an account? Login",
+                            style: TextStyle(color: Colors.black),
                           ),
-                        const SizedBox(height: 20),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 32),
 
-                      if (_showFullForm) _buildFullForm(ninController),
+                    DropdownButtonFormField<String>(
+                      value: _selectedIdType,
+                      decoration: InputDecoration(
+                        labelText: "Select ID Type",
+                        labelStyle: const TextStyle(color: Colors.black),
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        border: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                      ),
+                      dropdownColor: Colors.white,
+                      style: const TextStyle(color: Colors.black),
+                      items: const [
+                        {"label": "Register with NIN", "value": "nin"},
+                        {"label": "Register with BVN", "value": "bvn"},
+                        {"label": "Register with Passport", "value": "passport-number"},
+                      ].map((item) {
+                        return DropdownMenuItem<String>(
+                          value: item["value"]!,
+                          child: Text(item["label"]!, style: const TextStyle(color: Colors.black)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedIdType = value;
+                          _showIdInput = true;
+                          _showFullForm = false;
+                          _hasPopulatedFields = false;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+
+                    if (_showIdInput) ...[
+                      TextFormField(
+                        controller: _idNumberController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: "Enter ID Number"),
+                        style: const TextStyle(color: Colors.black),
+                        validator: (value) =>
+                        value == null || value.isEmpty ? "ID number is required" : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_idNumberController.text.isNotEmpty) {
+                            ninController.verifyId(_idNumberController.text.trim(), _selectedIdType!);
+                          }
+                        },
+                        child: ninController.isVerifying
+                            ? const CircularProgressIndicator(color: Colors.black)
+                            : const Text('Verify'),
+                      ),
+                      const SizedBox(height: 10),
+
+                      if (ninController.verificationMessage.isNotEmpty)
+                        Text(
+                          ninController.verificationMessage,
+                          style: TextStyle(
+                            color: ninController.verificationMessage.contains('Success')
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ),
+                      const SizedBox(height: 20),
                     ],
-                  ),
+
+                    if (_showFullForm) _buildFullForm(ninController),
+                  ],
                 ),
               ),
             ),

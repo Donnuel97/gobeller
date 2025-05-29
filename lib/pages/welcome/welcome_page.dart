@@ -1,12 +1,16 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/utils/routes.dart';
 import 'package:gobeller/controller/organization_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -15,27 +19,43 @@ class WelcomePage extends StatefulWidget {
   State<WelcomePage> createState() => _WelcomePageState();
 }
 
-class _WelcomePageState extends State<WelcomePage> {
+class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin {
   bool _hasFetched = false;
   bool _hasRetried = false;
-  VideoPlayerController? _videoController;
+  late AnimationController _logoController;
+  late Animation<double> _logoAnimation;
+  late VideoPlayerController _videoController;
 
   @override
   void initState() {
     super.initState();
+    _initializeVideo();
+    _logoController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    _logoAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    _logoController.forward();
+  }
 
-    _videoController = VideoPlayerController.asset("")
-      ..initialize().then((_) {
-        setState(() {});
-        _videoController!.setLooping(true);
-        _videoController!.setVolume(0);
-        _videoController!.play();
-      });
+  Future<void> _initializeVideo() async {
+    _videoController = VideoPlayerController.asset('');
+    await _videoController.initialize();
+    _videoController.setLooping(true);
+    _videoController.setVolume(0.0);
+    _videoController.play();
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    _logoController.dispose();
+    _videoController.dispose();
     super.dispose();
   }
 
@@ -49,8 +69,7 @@ class _WelcomePageState extends State<WelcomePage> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await orgController.loadCachedData();
         await orgController.fetchOrganizationData();
-        await orgController.fetchSupportDetails(); // ✅ Fetch support details here
-
+        await orgController.fetchSupportDetails();
 
         if ((orgController.organizationData == null || orgController.appSettingsData == null) && !_hasRetried) {
           _hasRetried = true;
@@ -66,6 +85,26 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
+  Widget _buildAnimatedBackground(Color primaryColor, Color secondaryColor) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primaryColor.withOpacity(0.1),
+            secondaryColor.withOpacity(0.2),
+          ],
+        ),
+      ),
+    ).animate(
+      onPlay: (controller) => controller.repeat(),
+    ).shimmer(
+      duration: 3.seconds,
+      color: primaryColor.withOpacity(0.3),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<OrganizationController>(
@@ -79,7 +118,7 @@ class _WelcomePageState extends State<WelcomePage> {
         final primaryColorHex = settings['customized-app-primary-color'] ?? '#6200EE';
         final tertiaryColorHex = settings['customized-app-tertiary-color'] ?? '#000000';
         final logoUrl = settings['customized-app-logo-url'];
-        final welcomeTitle = "Welcome to ${orgData['short_name'] ?? 'Our'} ";
+        final welcomeTitle = "Welcome to ${orgData['short_name'] ?? 'Our Platform'}";
         final welcomeDescription = orgData['description'] ?? "We are here to help you achieve your goals.";
 
         final primaryColor = parseColor(primaryColorHex, fallbackHex: '#6200EE');
@@ -89,32 +128,59 @@ class _WelcomePageState extends State<WelcomePage> {
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Background Video
-              if (_videoController != null && _videoController!.value.isInitialized)
+              // Video Background
+              if (_videoController.value.isInitialized)
                 FittedBox(
                   fit: BoxFit.cover,
                   child: SizedBox(
-                    width: _videoController!.value.size.width,
-                    height: _videoController!.value.size.height,
-                    child: VideoPlayer(_videoController!),
+                    width: _videoController.value.size.width,
+                    height: _videoController.value.size.height,
+                    child: VideoPlayer(_videoController),
                   ),
-                )
-              else
-                Container(color: Colors.black),
+                ),
 
-              // Dark overlay with tertiary color and fade animation
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 500),
-                color: tertiaryColor.withOpacity(1),
+              // Dark Overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0.7),
+                      Colors.white.withOpacity(0.5),
+                    ],
+                  ),
+                ),
               ),
 
               // Content
               SafeArea(
                 child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading...',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : hasError
-                    ? _buildErrorState(context)
-                    : _buildMainContent(context, logoUrl, welcomeTitle, welcomeDescription, primaryColor),
+                        ? _buildErrorState(context)
+                        : _buildMainContent(
+                            context,
+                            logoUrl,
+                            welcomeTitle,
+                            welcomeDescription,
+                            primaryColor,
+                          ),
               ),
             ],
           ),
@@ -123,7 +189,13 @@ class _WelcomePageState extends State<WelcomePage> {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, String? logoUrl, String welcomeTitle, String welcomeDescription, Color primaryColor) {
+  Widget _buildMainContent(
+    BuildContext context,
+    String? logoUrl,
+    String welcomeTitle,
+    String welcomeDescription,
+    Color primaryColor,
+  ) {
     return Column(
       children: [
         Expanded(
@@ -133,124 +205,219 @@ class _WelcomePageState extends State<WelcomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (logoUrl != null)
-                  CachedNetworkImage(
-                    imageUrl: logoUrl,
-                    width: 128,
-                    height: 128,
-                    fit: BoxFit.contain,
-                    httpHeaders: const {
-                      'User-Agent': 'Flutter App',
-                      'Accept': 'image/png, image/jpeg, image/jpg, image/gif, image/webp, image/*',
-                    },
-                    placeholder: (context, url) => SizedBox(
-                      width: 128,
-                      height: 128,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: null,
+                  FadeInDown(
+                    duration: const Duration(milliseconds: 1200),
+                    child: ScaleTransition(
+                      scale: _logoAnimation,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: CachedNetworkImage(
+                          imageUrl: logoUrl,
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.contain,
+                          httpHeaders: const {
+                            'User-Agent': 'Flutter App',
+                            'Accept': 'image/png, image/jpeg, image/jpg, image/gif, image/webp, image/*',
+                          },
+                          placeholder: (context, url) => const CircularProgressIndicator(),
+                          errorWidget: (context, url, error) {
+                            debugPrint('Failed to load image: $url');
+                            debugPrint('Error: $error');
+                            return const Icon(Icons.error_outline, size: 60);
+                          },
                         ),
                       ),
                     ),
-                    errorWidget: (context, url, error) {
-                      print('Failed to load image: $url');
-                      print('Error: $error');
-                      return const Center(
-                        child: Text(
-                          'Getting Data...',
-                          style: TextStyle(color: Colors.black, fontSize: 16),
-                        ),
-                      );
-                    },
                   ),
-                const SizedBox(height: 32),
-                Text(
-                  welcomeTitle,
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    color: Colors.black,
+                const SizedBox(height: 40),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 1000),
+                  delay: const Duration(milliseconds: 500),
+                  child: Text(
+                    welcomeTitle,
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  welcomeDescription,
-                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: Colors.black,
+                const SizedBox(height: 16),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 1000),
+                  delay: const Duration(milliseconds: 700),
+                  child: Text(
+                    welcomeDescription,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
         ),
-        Padding(
-          padding: ConstUI.kMainPadding,
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black,
-
-                    side: const BorderSide(color: Colors.black),
+        FadeInUp(
+          duration: const Duration(milliseconds: 1000),
+          delay: const Duration(milliseconds: 900),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildButton(
+                    context: context,
+                    text: "Login",
+                    isOutlined: true,
+                    onPressed: () => Navigator.pushNamed(context, Routes.login),
                   ),
-                  child: const Text("Login"),
-                  onPressed: () => Navigator.pushNamed(context, Routes.login),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: FilledButton(
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(primaryColor),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildButton(
+                    context: context,
+                    text: "Register",
+                    isOutlined: false,
+                    onPressed: () => Navigator.pushNamed(context, Routes.register),
                   ),
-                  child: const Text("Register"),
-                  onPressed: () => Navigator.pushNamed(context, Routes.register),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildErrorState(BuildContext context) {
-    final orgController = Provider.of<OrganizationController>(context, listen: false);
-
-    return Padding(
-      padding: ConstUI.kMainPadding,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
-            const SizedBox(height: 16),
-            const Text(
-              "Unable to load app settings.\nPlease check your internet and try again.",
+  Widget _buildButton({
+    required BuildContext context,
+    required String text,
+    required bool isOutlined,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: isOutlined
+            ? null
+            : [
+                BoxShadow(
+                  color: Theme.of(context).primaryColor.withOpacity(0.8),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+      ),
+      child: Material(
+        borderRadius: BorderRadius.circular(30),
+        color: isOutlined ? Colors.transparent : Theme.of(context).primaryColor,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            decoration: isOutlined
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
+                  )
+                : null,
+            child: Text(
+              text,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.white),
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isOutlined
+                    ? Theme.of(context).primaryColor
+                    : Colors.white,
+              ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text("Retry"),
-              onPressed: () async {
-                await orgController.fetchOrganizationData();
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // Helper to parse color safely
-  Color parseColor(String hexColor, {String fallbackHex = '#000000'}) {
-    try {
-      return Color(int.parse(hexColor.replaceAll('#', '0xFF')));
-    } catch (_) {
-      return Color(int.parse(fallbackHex.replaceAll('#', '0xFF')));
+  Widget _buildErrorState(BuildContext context) {
+    return Center(
+      child: FadeInUp(
+        duration: const Duration(milliseconds: 1000),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 60,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Oops! Something went wrong',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please check your internet connection and try again',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              _buildButton(
+                context: context,
+                text: "Retry",
+                isOutlined: false,
+                onPressed: () {
+                  setState(() {
+                    _hasFetched = false;
+                    _hasRetried = false;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Color parseColor(String hexColor, {required String fallbackHex}) {
+  try {
+    hexColor = hexColor.replaceAll("#", "");
+    if (hexColor.length == 6) {
+      return Color(int.parse("FF$hexColor", radix: 16));
     }
+    return Color(int.parse(fallbackHex.replaceAll("#", "FF"), radix: 16));
+  } catch (e) {
+    return Color(int.parse(fallbackHex.replaceAll("#", "FF"), radix: 16));
   }
 }

@@ -22,7 +22,7 @@ class OrganizationController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    const String url = 'https://app.gobeller.cc/api/v1/organizations/101';
+    const String url = 'https://app.gobeller.cc/api/v1/organizations/0055';
 
     try {
       final response = await http.get(Uri.parse(url));

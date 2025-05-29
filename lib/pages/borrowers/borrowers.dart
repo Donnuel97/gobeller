@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import 'SubscriptionHistoryPage.dart';
+import 'package:gobeller/pages/property/property_history_page.dart';
 
 class PropertyListPage extends StatefulWidget {
   const PropertyListPage({super.key});
@@ -126,67 +127,18 @@ class _PropertyListPageState extends State<PropertyListPage> {
       appBar: AppBar(
         title: const Text('Available Properties'),
         actions: [
-          Consumer<PropertyController>(
-            builder: (context, controller, child) {
-              if (controller.isCategoriesLoading) {
-                return const Padding(
-                  padding: EdgeInsets.only(right: 16.0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              if (controller.categories.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    dropdownColor: Colors.white,
-                    icon: const Icon(Icons.filter_list, color: Colors.white),
-                    value: selectedCategoryId,
-                    items: [
-                      DropdownMenuItem<String?>(
-                        value: null,
-                        child: Row(
-                          children: const [
-                            Icon(Icons.category, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text('All', style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ),
-                      ...controller.categories.map((category) {
-                        return DropdownMenuItem<String?>(
-                          value: category['id'] as String?,
-                          child: Text(
-                            category['label'] ?? 'Unknown',
-                            style: const TextStyle(color: Colors.black),
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCategoryId = value;
-                      });
-                      controller.filterPropertiesByCategory(value);
-                    },
-                  ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PropertyHistoryPage(),
                 ),
               );
             },
           ),
+          _buildCategoryButton(context),
         ],
       ),
       body: Consumer<PropertyController>(
@@ -196,11 +148,33 @@ class _PropertyListPageState extends State<PropertyListPage> {
           }
 
           if (controller.properties.isEmpty) {
-            return const Center(child: Text('No properties available.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No properties available',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  if (controller.selectedCategoryId != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () => controller.clearCategoryFilter(),
+                      icon: const Icon(Icons.filter_alt_off),
+                      label: const Text('Clear Filter'),
+                    ),
+                  ],
+                ],
+              ),
+            );
           }
 
           return Column(
             children: [
+              if (controller.selectedCategoryId != null)
+                _buildActiveFilterBar(controller),
               Expanded(
                 child: ListView.builder(
                   itemCount: controller.properties.length,
@@ -314,21 +288,229 @@ class _PropertyListPageState extends State<PropertyListPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12.0),
                   child: ElevatedButton(
-                    onPressed: () {
-                      controller.loadNextPage();
-                    },
+                    onPressed: () => controller.loadNextPage(),
                     child: controller.isLoading
                         ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Load More'),
                   ),
                 ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCategoryButton(BuildContext context) {
+    return Consumer<PropertyController>(
+      builder: (context, controller, _) {
+        if (controller.isCategoriesLoading) {
+          return const Padding(
+            padding: EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (controller.categories.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          icon: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.filter_list),
+              if (controller.selectedCategoryId != null)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          tooltip: 'Filter by Category',
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => DraggableScrollableSheet(
+                initialChildSize: 0.4,
+                minChildSize: 0.3,
+                maxChildSize: 0.85,
+                builder: (context, scrollController) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Filter by Category',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (controller.selectedCategoryId != null)
+                            TextButton(
+                              onPressed: () {
+                                controller.clearCategoryFilter();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Clear Filter'),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          children: [
+                            ListTile(
+                              leading: Icon(
+                                Icons.category_outlined,
+                                color: controller.selectedCategoryId == null 
+                                    ? Theme.of(context).primaryColor 
+                                    : Colors.grey,
+                              ),
+                              title: Text(
+                                'All Categories',
+                                style: TextStyle(
+                                  fontWeight: controller.selectedCategoryId == null 
+                                      ? FontWeight.bold 
+                                      : FontWeight.normal,
+                                  color: controller.selectedCategoryId == null
+                                      ? Theme.of(context).primaryColor
+                                      : null,
+                                ),
+                              ),
+                              selected: controller.selectedCategoryId == null,
+                              onTap: () {
+                                controller.clearCategoryFilter();
+                                Navigator.pop(context);
+                              },
+                              trailing: controller.selectedCategoryId == null
+                                  ? Icon(Icons.check, color: Theme.of(context).primaryColor)
+                                  : null,
+                            ),
+                            const Divider(),
+                            ...controller.categories.map((category) {
+                              final isSelected = controller.isCategorySelected(category['id']);
+                              return ListTile(
+                                leading: Icon(
+                                  Icons.check_circle_outline,
+                                  color: isSelected 
+                                      ? Theme.of(context).primaryColor 
+                                      : Colors.grey,
+                                ),
+                                title: Text(
+                                  category['label'] ?? 'Unknown',
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? Theme.of(context).primaryColor : null,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onTap: () {
+                                  controller.filterPropertiesByCategory(category['id']);
+                                  Navigator.pop(context);
+                                },
+                                trailing: isSelected
+                                    ? Icon(Icons.check, color: Theme.of(context).primaryColor)
+                                    : null,
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveFilterBar(PropertyController controller) {
+    final category = controller.getCategoryById(controller.selectedCategoryId);
+    if (category == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).primaryColor.withOpacity(0.2),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.filter_list,
+            size: 18,
+            color: Theme.of(context).primaryColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Filtered by: ${category['label']}',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => controller.clearCategoryFilter(),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: Size.zero,
+            ),
+            icon: Icon(
+              Icons.close,
+              size: 16,
+              color: Theme.of(context).primaryColor,
+            ),
+            label: Text(
+              'Clear',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

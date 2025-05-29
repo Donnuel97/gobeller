@@ -29,6 +29,10 @@ class PropertyController with ChangeNotifier {
   List<Map<String, dynamic>> _filteredProperties = [];
 
   String? _selectedCategoryId;
+  String? get selectedCategoryId => _selectedCategoryId;
+
+  // Cache for category details
+  final Map<String, Map<String, dynamic>> _categoryCache = {};
 
   Future<String?> _getAuthToken() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -108,7 +112,12 @@ class PropertyController with ChangeNotifier {
     }
   }
 
-  Future<void> fetchPropertyCategories({int page = 1, int itemsPerPage = 20}) async {
+  /// Fetches property categories with optimized caching
+  Future<void> fetchPropertyCategories({bool forceRefresh = false}) async {
+    if (!forceRefresh && _categories.isNotEmpty) {
+      return; // Use cached categories if available
+    }
+
     _isCategoriesLoading = true;
     notifyListeners();
 
@@ -116,52 +125,90 @@ class PropertyController with ChangeNotifier {
       final token = await _getAuthToken();
       if (token == null) throw Exception("No auth token");
 
-      final endpoint = "/properties-mgt/property-categories?page=$page&items_per_page=$itemsPerPage";
+      final endpoint = "/properties-mgt/property-categories";
       final headers = {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       };
 
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
-      debugPrint("📂 Property Categories API Full Response: $response");
+      debugPrint("📂 Property Categories API Response Status: ${response['status']}");
 
-      if (response['status'] == true) {
+      if (response['status'] == true && response['data'] != null) {
         final responseData = response['data'];
+        
+        // Handle direct list response
+        if (responseData is List) {
+          // Convert and filter visible categories only
+          _categories = responseData
+              .where((category) => category is Map<String, dynamic> && category['is_visible'] == true)
+              .map((category) => category as Map<String, dynamic>)
+              .toList()
+            ..sort((a, b) => (a['label'] ?? '').compareTo(b['label'] ?? ''));
 
-        if (responseData is Map<String, dynamic>) {
-          final categoryList = responseData['data'];
-
-          if (categoryList is List) {
-            if (page == 1) {
-              _categories = categoryList.cast<Map<String, dynamic>>();
-            } else {
-              _categories.addAll(categoryList.cast<Map<String, dynamic>>());
+          // Update category cache
+          for (var category in _categories) {
+            if (category['id'] != null) {
+              _categoryCache[category['id'].toString()] = category;
             }
-          } else {
-            _categories = [];
-            debugPrint("⚠️ 'data' key inside response data is not a List");
           }
+
+          debugPrint("📂 Successfully loaded ${_categories.length} categories");
+          debugPrint("📂 Categories: ${_categories.map((c) => c['label']).toList()}");
         } else {
+          debugPrint("⚠️ Response data is not a List: ${responseData.runtimeType}");
           _categories = [];
-          debugPrint("⚠️ response data is not a Map<String, dynamic>");
         }
       } else {
+        debugPrint("❌ Categories API error: ${response['message']}");
         _categories = [];
-        debugPrint("❌ API responded with status=false: ${response['message']}");
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint("❌ Error fetching categories: $e");
+      debugPrint("Stack trace: $stackTrace");
       _categories = [];
-      debugPrint("❌ Error fetching property categories: $e");
     } finally {
       _isCategoriesLoading = false;
       notifyListeners();
     }
   }
 
+  /// Get category details by ID (with caching)
+  Map<String, dynamic>? getCategoryById(String? categoryId) {
+    if (categoryId == null) return null;
+    return _categoryCache[categoryId];
+  }
 
+  /// Filter properties by category with optimized performance
+  void filterPropertiesByCategory(String? categoryId) {
+    _selectedCategoryId = categoryId;
+    _applyCategoryFilter();
+    notifyListeners();
+  }
 
+  /// Apply category filter with improved performance
+  void _applyCategoryFilter() {
+    if (_selectedCategoryId == null) {
+      _filteredProperties = List.from(_properties);
+    } else {
+      _filteredProperties = _properties.where((property) {
+        final propertyCategory = property['property_category_id']?.toString();
+        return propertyCategory == _selectedCategoryId;
+      }).toList();
+    }
+  }
 
+  /// Clear category filter
+  void clearCategoryFilter() {
+    _selectedCategoryId = null;
+    _filteredProperties = List.from(_properties);
+    notifyListeners();
+  }
 
+  /// Check if a category is currently selected
+  bool isCategorySelected(String? categoryId) {
+    return _selectedCategoryId == categoryId;
+  }
 
   Future<Map<String, dynamic>?> fetchPropertyDetails(String propertyId) async {
     if (_propertyDetailsCache.containsKey(propertyId)) {
@@ -194,8 +241,6 @@ class PropertyController with ChangeNotifier {
       return null;
     }
   }
-
-
 
   /// Initiate property subscription
   Future<Map<String, dynamic>> initiateSubscriptionRequest({
@@ -318,12 +363,12 @@ class PropertyController with ChangeNotifier {
   }
 
   /// Fetch subscription history for a specific property
-  Future<Map<String, dynamic>?> fetchPropertySubscriptionHistory(String propertyId) async {
+  Future<Map<String, dynamic>?> fetchPropertySubscriptionHistory(String subscriptionId) async {
     try {
       final token = await _getAuthToken();
       if (token == null) throw Exception("No auth token");
 
-      final endpoint = "/properties-mgt/property-subscriptions/$propertyId";
+      final endpoint = "/properties-mgt/property-subscriptions/$subscriptionId";
       final headers = {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -384,26 +429,6 @@ class PropertyController with ChangeNotifier {
     }
   }
 
-
-  /// Apply category filter to _properties, updating _filteredProperties
-  void _applyCategoryFilter() {
-    if (_selectedCategoryId == null) {
-      _filteredProperties = List.from(_properties);
-    } else {
-      _filteredProperties = _properties.where((property) {
-        // Adjust this key to your property data's category id key
-        return property['property_category_id'] == _selectedCategoryId;
-      }).toList();
-    }
-  }
-
-  /// Public method to filter by category and notify listeners
-  void filterPropertiesByCategory(String? categoryId) {
-    _selectedCategoryId = categoryId;
-    _applyCategoryFilter();
-    notifyListeners();
-  }
-
   /// 🔍 Get property name by ID
   String? getPropertyNameById(String id) {
     try {
@@ -426,5 +451,45 @@ class PropertyController with ChangeNotifier {
     if (!hasNextPage) return false;
     await fetchProperties(page: _currentPage + 1);
     return true;
+  }
+
+  /// Fetch all property subscriptions
+  Future<List<Map<String, dynamic>>> fetchAllPropertySubscriptions() async {
+    try {
+      final token = await _getAuthToken();
+      if (token == null) throw Exception("No auth token");
+
+      final endpoint = "/properties-mgt/property-subscriptions";
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+
+      final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      
+      debugPrint("\n📜 All Property Subscriptions:");
+      debugPrint("Status: ${response['status']}");
+      debugPrint("Message: ${response['message']}");
+
+      if (response['status'] == true && response['data'] != null) {
+        final List<Map<String, dynamic>> subscriptions = [];
+        
+        if (response['data'] is List) {
+          subscriptions.addAll(List<Map<String, dynamic>>.from(response['data']));
+        } else if (response['data'] is Map && response['data']['data'] is List) {
+          // Handle paginated response
+          subscriptions.addAll(List<Map<String, dynamic>>.from(response['data']['data']));
+        }
+
+        debugPrint("Found ${subscriptions.length} subscriptions");
+        return subscriptions;
+      }
+      
+      return [];
+    } catch (e) {
+      debugPrint("\n❌ Error fetching property subscriptions: $e");
+      return [];
+    }
   }
 }

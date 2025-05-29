@@ -503,154 +503,165 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+    // Reset form controllers
+    _idValueController.clear();
+    _transactionPinController.clear();
+    _selectedIdType = null;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      "Link KYC Identity ID",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ID Type Dropdown
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'ID Type',
-                      border: OutlineInputBorder(),
-                    ),
-                    value: _selectedIdType,
-                    items: availableIdTypes
-                        .map((type) => DropdownMenuItem<String>(
-                          value: type,
-                          child: Text(type.toUpperCase()),
-                        ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedIdType = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ID Value
-                  TextFormField(
-                    controller: _idValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'ID Value',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Transaction PIN
-                  TextFormField(
-                    controller: _transactionPinController,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    maxLength: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Transaction PIN',
-                      border: OutlineInputBorder(),
-                      helperText: 'Enter your 4-digit transaction PIN',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Submit Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Text(
+                          "Link KYC Identity ID",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
                       ),
-                      onPressed: () async {
-                        if (_selectedIdType == null || 
-                            _idValueController.text.isEmpty ||
-                            _transactionPinController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please fill in all fields')),
+                      const SizedBox(height: 20),
+                      // ID Type Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedIdType,
+                        decoration: const InputDecoration(
+                          labelText: 'ID Type',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: availableIdTypes.map((String type) {
+                          return DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type.toUpperCase()),
                           );
-                          return;
-                        }
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedIdType = newValue;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      // ID Value Field
+                      TextField(
+                        controller: _idValueController,
+                        decoration: const InputDecoration(
+                          labelText: 'ID Value',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Transaction PIN Field
+                      TextField(
+                        controller: _transactionPinController,
+                        decoration: const InputDecoration(
+                          labelText: 'Transaction PIN',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: _loading
+                              ? null
+                              : () async {
+                                  if (_selectedIdType == null || 
+                                      _idValueController.text.isEmpty ||
+                                      _transactionPinController.text.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please fill in all fields')),
+                                    );
+                                    return;
+                                  }
 
-                        if (_transactionPinController.text.length != 4) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Transaction PIN must be 4 digits')),
-                          );
-                          return;
-                        }
+                                  if (_transactionPinController.text.length != 4) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Transaction PIN must be 4 digits')),
+                                    );
+                                    return;
+                                  }
 
-                        setState(() {
-                          _loading = true;
-                        });
+                                  setState(() {
+                                    _loading = true;
+                                  });
 
-                        try {
-                          final result = await KycVerificationController.verifyKycWithUserId(
-                            userId: userId,
-                            idType: _selectedIdType!,
-                            idValue: _idValueController.text,
-                            transactionPin: _transactionPinController.text,
-                          );
+                                  try {
+                                    final result = await KycVerificationController.verifyKycWithUserId(
+                                      userId: userId,
+                                      idType: _selectedIdType!,
+                                      idValue: _idValueController.text,
+                                      transactionPin: _transactionPinController.text,
+                                    );
 
-                          if (!mounted) return;
+                                    if (!mounted) return;
 
-                          if (result != null) {
-                            Navigator.of(context).pop(); // Close dialog
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('KYC verification successful')),
-                            );
-                            // Refresh the profile page
-                            _loadCachedData();
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('KYC verification failed')),
-                            );
-                          }
-                        } finally {
-                          if (mounted) {
-                            setState(() {
-                              _loading = false;
-                            });
-                          }
-                        }
-                      },
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text('Submit'),
-                    ),
+                                    if (result != null) {
+                                      // Clear form fields
+                                      _idValueController.clear();
+                                      _transactionPinController.clear();
+                                      _selectedIdType = null;
+                                      
+                                      Navigator.of(context).pop(); // Close dialog
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('KYC verification successful')),
+                                      );
+                                      // Refresh the profile page
+                                      _loadCachedData();
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('KYC verification failed')),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _loading = false;
+                                      });
+                                    }
+                                  }
+                                },
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text('Submit'),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          }
         );
       },
     );
