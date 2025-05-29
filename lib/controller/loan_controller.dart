@@ -417,7 +417,7 @@ class LoanController with ChangeNotifier {
         return;
       }
 
-      const String endpoint = "/banks";
+      const String endpoint = "/banks?support_direct_debit_mandates=true";
       final Map<String, String> headers = {
         "Authorization": "Bearer $token",
         "Accept": "application/json",

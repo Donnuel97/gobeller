@@ -299,7 +299,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     Uint8List? logoImageBytes;
     try {
       logoImageBytes = await rootBundle
-          .load('assets/logo.png')
+          .load('assets/logo/logo.png')
           .then((value) => value.buffer.asUint8List());
     } catch (e) {
       print("Error loading logo image from assets: $e");
@@ -444,7 +444,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     Uint8List? logoImageBytes;
     try {
       logoImageBytes = await rootBundle
-          .load('assets/logo.png')
+          .load('assets/logo/logo.png')
           .then((value) => value.buffer.asUint8List());
     } catch (e) {
       print("Error loading logo image from assets: $e");

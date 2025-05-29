@@ -1,25 +1,26 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gobeller/utils/routes.dart';
 import 'package:gobeller/controller/CacVerificationController.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-class QuickActionsGrid extends StatefulWidget {
-  const QuickActionsGrid({super.key});
+class MoreMenuPage extends StatefulWidget {
+  const MoreMenuPage({super.key});
 
   @override
-  State<QuickActionsGrid> createState() => _QuickActionsGridState();
+  State<MoreMenuPage> createState() => _MoreMenuPageState();
 }
 
-class _QuickActionsGridState extends State<QuickActionsGrid> {
+class _MoreMenuPageState extends State<MoreMenuPage> {
   final CacVerificationController _CacVerificationController = CacVerificationController();
   Color _primaryColor = const Color(0xFF2BBBA4);
   Color _secondaryColor = const Color(0xFFFF9800);
   Map<String, dynamic> _menuItems = {};
   List<Widget> _menuCards = [];
-  bool _showAllCards = false;
+  bool _showBanner = false;
+  List<Map<String, dynamic>> _ads = [];
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
     final prefs = await SharedPreferences.getInstance();
     final settingsJson = prefs.getString('appSettingsData');
     final orgJson = prefs.getString('organizationData');
+    final userProfileRaw = prefs.getString('userProfileRaw');
 
     if (settingsJson != null) {
       final settings = json.decode(settingsJson)['data'];
@@ -50,39 +52,39 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
           ...?orgData['data']?['customized_app_displayable_menu_items'],
           "display-corporate-account-menu": true,
           "display-loan-request-menu": true,
-          "display-fix-deposit-menu": false,
+          "display-fix-deposit-menu": true,
           "display-bnpl-menu": true,
         };
       });
     }
 
-    _menuCards = _buildVisibleMenuCards();
+    if (userProfileRaw != null) {
+      final profileData = json.decode(userProfileRaw);
+      final adsMap = profileData['ads'] as Map<String, dynamic>?;
+
+      if (adsMap != null) {
+        final adsList = adsMap.entries.map((entry) {
+          final ad = entry.value;
+          return {
+            'subject': ad['subject'],
+            'content': ad['content'],
+            'banner_url': ad['banner_url'],
+            'content_redirect_url': ad['content_redirect_url'],
+          };
+        }).toList();
+
+        setState(() {
+          _ads = List<Map<String, dynamic>>.from(adsList);
+          _showBanner = _menuItems['display-banner'] ?? false;
+        });
+      }
+    }
+
+    _menuCards = _buildAllMenuCards();
     setState(() {});
   }
 
-  Future<void> _handleCorporateNavigation(BuildContext context) async {
-    try {
-      await _CacVerificationController.fetchWallets();
-
-      final wallets = _CacVerificationController.wallets ?? [];
-
-      final hasCorporate = wallets.any((wallet) =>
-      wallet['ownership_type'] == 'corporate-wallet'
-      );
-
-      if (hasCorporate) {
-        Navigator.pushNamed(context, Routes.dashboard);
-      } else {
-        Navigator.pushNamed(context, Routes.corporate);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching wallets: $e")),
-      );
-    }
-  }
-
-  List<Widget> _buildVisibleMenuCards() {
+  List<Widget> _buildAllMenuCards() {
     final List<Widget> cards = [];
     int index = 0;
 
@@ -105,36 +107,30 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
       cards.add(_buildMenuCard(context, icon: Icons.money, label: "Loan", route: Routes.loan, index: index++));
     }
     if (_menuItems['display-fix-deposit-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.candlestick_chart, label: "Fix Deposit", route: Routes.fixed, index: index++));
+      cards.add(_buildMenuCard(context, icon: Icons.candlestick_chart, label: "Fix Deposit", route: Routes.fx_soon, index: index++));
     }
     if (_menuItems['display-bnpl-menu'] == true) {
       cards.add(_buildMenuCard(context, icon: Icons.real_estate_agent, label: "BNPL", route: Routes.borrow, index: index++));
     }
+    if (_menuItems['display-fix-deposit-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.candlestick_chart, label: "Investment", route: Routes.fx_soon, index: index++));
+    }
 
     // If we have 7 or more cards, replace the last visible one with "See More"
-    if (cards.length >= 7) {
-      cards.removeAt(6); // Remove the 7th item
-      cards.add(_buildMenuCard(
-        context,
-        icon: Icons.apps_rounded,
-        label: "See More",
-        route: Routes.more_menu,
-        index: index,
-      ));
-    }
+    
 
     return cards;
   }
 
   Widget _buildMenuCard(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    String? route,
-    required int index,
-    }) {
+      BuildContext context, {
+        required IconData icon,
+        required String label,
+        String? route,
+        required int index,
+      }) {
     final color = index % 2 == 0 ? _primaryColor : _secondaryColor;
-    
+
     return GestureDetector(
       onTap: () async {
         if (label == "Transfer") {
@@ -145,7 +141,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
             final wallets = _CacVerificationController.wallets ?? [];
 
             final hasCorporate = wallets.any((wallet) =>
-              wallet['ownership_type'] == 'corporate-wallet'
+            wallet['ownership_type'] == 'corporate-wallet'
             );
 
             if (hasCorporate) {
@@ -206,6 +202,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
       ),
     );
   }
+
 
   void _showTransferOptions(BuildContext context) {
     final showWallet = _menuItems['display-wallet-transfer-menu'] == true;
@@ -284,32 +281,186 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
 
   @override
   Widget build(BuildContext context) {
-    if (_menuCards.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            "Menu not available, contact support for assistance",
-            style: GoogleFonts.poppins(
-              color: _primaryColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'All Services',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
           ),
         ),
-      );
-    }
-
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 0.8,
-      children: _menuCards,
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: _menuCards.isEmpty
+        ? Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+            ),
+          )
+        : SingleChildScrollView(
+            child: Column(
+              children: [
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 4,
+                  padding: const EdgeInsets.all(16),
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.8,
+                  children: _menuCards,
+                ),
+                if (_showBanner && _ads.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  AdCarousel(ads: _ads),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
+          ),
     );
   }
 }
+
+class AdCarousel extends StatefulWidget {
+  final List<Map<String, dynamic>> ads;
+
+  const AdCarousel({super.key, required this.ads});
+
+  @override
+  State<AdCarousel> createState() => _AdCarouselState();
+}
+
+class _AdCarouselState extends State<AdCarousel> {
+  final PageController _controller = PageController(viewportFraction: 1.0);
+  int _currentIndex = 0;
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
+      if (_controller.hasClients && widget.ads.isNotEmpty) {
+        int nextPage = (_currentIndex + 1) % widget.ads.length;
+        _controller.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+        setState(() {
+          _currentIndex = nextPage;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.ads.isEmpty) return const SizedBox();
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 250,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.ads.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final ad = widget.ads[index];
+              return GestureDetector(
+                onTap: () {
+                  final url = ad['content_redirect_url'];
+                  debugPrint("🔗 Redirect to: $url");
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          ad['banner_url'],
+                          width: double.infinity,
+                          height: 130,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image_not_supported),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        ad['subject'] ?? 'Ad Title',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: Text(
+                          ad['content'] ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(widget.ads.length, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _currentIndex == index ? 20 : 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: _currentIndex == index ? Colors.blueAccent : Colors.grey,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+} 

@@ -36,6 +36,7 @@ import 'package:gobeller/pages/success_screens/quick_menu/electricity_success.da
 import 'package:gobeller/pages/success_screens/quick_menu/wallet_to_bank_success.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/wallet_to_wallet_success.dart';
 import 'package:gobeller/pages/success_screens/quick_menu/cable_result.dart';
+import 'package:gobeller/pages/success/more_menu_page.dart';
 
 class Routes {
   static const String initial = '/';
@@ -71,6 +72,7 @@ class Routes {
   static const String fixed_form = '/fixed_form';
   static const String loan_summary = '/loan_summary';
   static const String borrow = '/borrow';
+  static const String more_menu = '/more_menu';
 
   static Map<String, Widget Function(BuildContext)> routes = {
     initial: (context) => const WelcomePage(),
@@ -108,6 +110,7 @@ class Routes {
       final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
       return CardDetailsPage(card: card);
     },
+    more_menu: (context) => const MoreMenuPage(),
   };
 }
 

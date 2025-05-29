@@ -144,9 +144,9 @@ class _LoanFormPageState extends State<LoanFormPage> {
       newRelocationAddress: _relocationAddressController.text,
       preferredRepaymentMethod: repaymentPlan?.toLowerCase() ?? 'wallet',
       repaymentWalletId: repaymentPlan == 'Wallet' ? _selectedWalletId : null,
-      repaymentBankId: (repaymentPlan == 'Bank' || repaymentPlan == 'Direct-Debit') ? _selectedBankId : null,
-      repaymentBankAccountName: (repaymentPlan == 'Bank' || repaymentPlan == 'Direct-Debit') ? _accountNameController.text : null,
-      repaymentBankAccountNumber: (repaymentPlan == 'Bank' || repaymentPlan == 'Direct-Debit') ? _accountNumberController.text : null,
+      repaymentBankId: ( repaymentPlan == 'Direct-Debit') ? _selectedBankId : null,
+      repaymentBankAccountName: ( repaymentPlan == 'Direct-Debit') ? _accountNameController.text : null,
+      repaymentBankAccountNumber: ( repaymentPlan == 'Direct-Debit') ? _accountNumberController.text : null,
     );
 
     setState(() => _isSubmitting = false);
@@ -254,7 +254,7 @@ class _LoanFormPageState extends State<LoanFormPage> {
                 _buildTextField(label: 'Number of dependents', icon: Icons.group, controller: _dependentsController),
                 _buildDropdownField(
                   label: 'How do you want to pay back?',
-                  items: ['Wallet', 'Bank', 'Direct-Debit'],
+                  items: ['Wallet','Direct-Debit'],
                   value: repaymentPlan,
                   onChanged: (val) {
                     setState(() {
@@ -270,7 +270,7 @@ class _LoanFormPageState extends State<LoanFormPage> {
                 if (repaymentPlan == 'Wallet')
                   _buildWalletSelector(),
 
-                if (repaymentPlan == 'Bank' || repaymentPlan == 'Direct-Debit') ...[
+                if ( repaymentPlan == 'Direct-Debit') ...[
                   _buildBankDropdownField(),
 
                   Consumer<LoanController>(
@@ -540,7 +540,7 @@ class _LoanFormPageState extends State<LoanFormPage> {
             setState(() => _selectedBankId = value);
           },
           validator: (value) {
-            if ((repaymentPlan == 'Bank' || repaymentPlan == 'Direct-Debit') && value == null) {
+            if (( repaymentPlan == 'Direct-Debit') && value == null) {
               return 'Please select a bank';
             }
             return null;
