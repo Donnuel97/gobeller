@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gobeller/pages/success/dashboard_page.dart';
+import 'package:gobeller/pages/success/dashboard_page_2.dart';
 import 'package:gobeller/pages/wallet/wallet_page.dart';
 import 'package:gobeller/pages/borrowers/borrowers.dart';
 import 'package:gobeller/pages/cards/virtual_card_page.dart';

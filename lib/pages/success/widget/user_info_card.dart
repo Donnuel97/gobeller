@@ -22,7 +22,7 @@ class UserInfoCard extends StatefulWidget {
     required this.accountNumber,
     required this.balance,
     required this.bankName,
-    required this.hasWallet,
+    required this.hasWallet, Color? backgroundColor,
   });
 
   @override

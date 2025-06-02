@@ -13,7 +13,6 @@ class WalletTransactionController with ChangeNotifier {
   /// Fetch Wallet Transactions
   Future<void> fetchWalletTransactions() async {
     _isLoading = true;
-    // Instead of calling notifyListeners() immediately, delay it after the frame is drawn
     WidgetsBinding.instance.addPostFrameCallback((_) {
       notifyListeners();
     });
@@ -21,6 +20,7 @@ class WalletTransactionController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found.");
@@ -33,10 +33,12 @@ class WalletTransactionController with ChangeNotifier {
 
       final extraHeaders = {
         'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'AppID': appId,
       };
 
       final response = await ApiService.getRequest(
-        "/customers/wallet-transactions", // Adjust the API endpoint as needed
+        "/customers/wallet-transactions",
         extraHeaders: extraHeaders,
       );
 
@@ -59,5 +61,4 @@ class WalletTransactionController with ChangeNotifier {
       notifyListeners();
     });
   }
-
 }

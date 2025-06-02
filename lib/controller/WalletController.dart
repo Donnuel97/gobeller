@@ -8,6 +8,7 @@ class WalletController {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
@@ -16,6 +17,8 @@ class WalletController {
 
       final extraHeaders = {
         'Authorization': 'Bearer $token',
+        'AppID': appId,
+        'Content-Type': 'application/json',
       };
 
       final response = await ApiService.getRequest(

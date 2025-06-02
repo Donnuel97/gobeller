@@ -20,10 +20,13 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final LoginController _loginController = LoginController(); // ✅ Added
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   bool _isPasswordObscured = true;
   bool _isLoading = false;
@@ -39,6 +42,19 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.2,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    
     _loadPrimaryColorAndLogo();
     _checkStoredUsername();
     _autoBiometricLogin(); // <- Call here
@@ -47,33 +63,71 @@ class _LoginPageState extends State<LoginPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(),
+      builder: (_) => Center(
+        child: _logoUrl != null
+            ? AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _pulseAnimation.value,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: CachedNetworkImage(
+                        imageUrl: _logoUrl!,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const CircularProgressIndicator(),
+                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                      ),
+                    ),
+                  );
+                },
+              )
+            : const CircularProgressIndicator(),
       ),
     );
   }
 
   void _hideLoadingDialog() {
+    if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
   }
 
   Future<void> _autoBiometricLogin() async {
+    if (!mounted) return;
+    
     final prefs = await SharedPreferences.getInstance();
     final hasUsername = prefs.getString('saved_username') != null;
     final hasPassword = prefs.getString('saved_password') != null;
 
     if (hasUsername && hasPassword) {
+      if (!mounted) return;
+      
       setState(() => _isBiometricLoading = true);
+      if (!mounted) return;
+      
       _showLoadingDialog();
-
       final didAuth = await BiometricHelper.authenticate();
 
-      if (didAuth && mounted) {
+      if (!mounted) return;
+
+      if (didAuth) {
         final result = await _loginController.loginUser(useStoredCredentials: true);
 
-        _hideLoadingDialog();
-
         if (!mounted) return;
+        _hideLoadingDialog();
 
         if (result['success'] == true) {
           Navigator.pushReplacement(
@@ -86,16 +140,17 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
+        if (!mounted) return;
         _hideLoadingDialog();
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometric authentication failed')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biometric authentication failed')),
+        );
       }
 
-      if (mounted) setState(() => _isBiometricLoading = false);
+      if (mounted) {
+        setState(() => _isBiometricLoading = false);
+      }
     }
   }
 
@@ -155,6 +210,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _handleLogin() async {
     setState(() => _isLoading = true);
+    _showLoadingDialog(); // Add this line
 
     final username = _storedUsername ?? _usernameController.text.trim();
     final password = _passwordController.text;
@@ -165,6 +221,7 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     if (!mounted) return;
+    _hideLoadingDialog(); // Add this line
 
     if (result['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
@@ -216,6 +273,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -312,9 +370,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Login"),
+                      child: const Text("Login"),
                     ),
                     const SizedBox(height: 16),
 

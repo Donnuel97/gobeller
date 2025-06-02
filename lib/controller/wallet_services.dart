@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:gobeller/utils/auth_services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletService {
   static const String _baseUrl = "https://app.gobeller.com/api/v1/customers/wallets?page=1&items_per_page=15";
@@ -8,6 +9,8 @@ class WalletService {
   Future<Map<String, dynamic>?> fetchWalletData() async {
     try {
       String? token = await AuthService.getAuthToken();
+      final prefs = await SharedPreferences.getInstance();
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         throw Exception("No authentication token found.");
@@ -18,6 +21,7 @@ class WalletService {
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
+          "AppID": appId,
         },
       );
 

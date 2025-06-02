@@ -20,6 +20,7 @@ class ChangePasswordController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -35,6 +36,7 @@ class ChangePasswordController with ChangeNotifier {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
+        "AppID": appId,
       };
 
       final Map<String, dynamic> body = {

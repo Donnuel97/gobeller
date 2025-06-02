@@ -22,29 +22,29 @@ class ElectricityController with ChangeNotifier {
   List<Map<String, String>> get electricityDiscos => _electricityDiscos;
   List<Map<String, String>> get meterTypes => _meterTypes;
 
+  static Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
+
+    return {
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'AppID': appId,
+    };
+  }
+
   /// Fetch Meter Services (Discos & Meter Types)
   Future<void> fetchMeterServices() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found.");
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token',
-      };
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
         "/transactions/get-meter-services",
-        extraHeaders: extraHeaders,
+        extraHeaders: headers,
       );
 
       debugPrint("🔹 Meter Services API Response: $response");
@@ -91,6 +91,7 @@ class ElectricityController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,6 +107,7 @@ class ElectricityController with ChangeNotifier {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
+        "AppID": appId,
       };
 
       final Map<String, dynamic> body = {
@@ -259,6 +261,4 @@ class ElectricityController with ChangeNotifier {
       notifyListeners();
     }
   }
-
-
 }

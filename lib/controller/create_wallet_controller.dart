@@ -58,7 +58,8 @@ class CurrencyController with ChangeNotifier {
   static Future<List<Map<String, dynamic>>> fetchWalletTypes() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token'); // Get the stored token
+      final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
@@ -66,7 +67,9 @@ class CurrencyController with ChangeNotifier {
       }
 
       final extraHeaders = {
-        'Authorization': 'Bearer $token',  // Include the token in the Authorization header
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'AppID': appId,  // Added AppID to headers
       };
 
       final response = await ApiService.getRequest(

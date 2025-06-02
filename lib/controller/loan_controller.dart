@@ -28,9 +28,18 @@ class LoanController with ChangeNotifier {
   List<Map<String, dynamic>> _banks = [];
   List<Map<String, dynamic>> get banks => _banks;
 
-  Future<String?> _getAuthToken() async {
+  /// Replace _getAuthToken with _getHeaders
+  Future<Map<String, String>> _getHeaders() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
+    
+    return {
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'AppID': appId,
+    };
   }
 
   Future<void> verifyBankAccount({
@@ -42,19 +51,10 @@ class LoanController with ChangeNotifier {
     notifyListeners();
 
     try {
-      final String? token = await _getAuthToken();
-      if (token == null) {
-        _beneficiaryName = "❌ You are not logged in. Please log in to continue.";
-        return;
-      }
-
-      print("\n🏦 Bank Account Verification Request:");
-      print("Account Number: $accountNumber");
-      print("Bank ID: $bankId");
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
         "/verify/bank-account/$accountNumber/$bankId",
-        extraHeaders: {'Authorization': 'Bearer $token'},
+        extraHeaders: headers,
       );
 
       print("\n🏦 Bank Account Verification Response:");
@@ -94,6 +94,7 @@ class LoanController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found.");
@@ -105,6 +106,7 @@ class LoanController with ChangeNotifier {
       final headers = {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
+        'AppID': appId, // <-- Added appID to header
       };
 
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
@@ -409,6 +411,7 @@ class LoanController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         _transactionMessage = "❌ You are not logged in. Please log in to continue.";
@@ -421,6 +424,7 @@ class LoanController with ChangeNotifier {
       final Map<String, String> headers = {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
+        "AppID": appId, // <-- Added appID to header
       };
 
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
@@ -459,20 +463,13 @@ class LoanController with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final String? token = await _getAuthToken();
-      if (token == null) {
-        _transactionMessage = "❌ Authentication required.";
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
         "/customers/wallets",
-        extraHeaders: {'Authorization': 'Bearer $token'},
+        extraHeaders: headers,
       );
 
-      print("🔹 Raw Wallets API Response: $response");
+      print("🔹 Loan controller Raw Wallets API Response: $response");
 
       if (response["status"] == true && response["data"] is List) {
         // Data is directly under response["data"], not response["data"]["data"]

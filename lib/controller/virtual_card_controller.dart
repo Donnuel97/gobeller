@@ -6,6 +6,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class VirtualCardController {
 
+  // Add helper method to get headers
+  static Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
+    
+    return {
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'Accept': 'application/json',
+      'AppID': appId,
+    };
+  }
+
   /** VALIDATE THE INITIAL AND AFTER VIRTUAL CARD CREATION ATTEMPT **/
   static Future<Map<String, dynamic>> validateAndProcessVCardCreationAttempt({
     bool isfinalSubmission = false,
@@ -26,10 +39,12 @@ class VirtualCardController {
         return {"status": "error", "message": "The Transaction Pin is required."};
       }
 
-      // Call the API via the ApiService class
-      final response = await ApiService.postRequest("/user/vcards/creasste-card", {
-        'transaction_pin': transactionPin
-      });
+      final headers = await _getHeaders();
+      final response = await ApiService.postRequest(
+        "/user/vcards/creasste-card",
+        {'transaction_pin': transactionPin},
+        extraHeaders: headers
+      );
 
       if (response.containsKey('status')) {
         if (response['status'] == 'success' && response.containsKey('message')) {
@@ -77,12 +92,16 @@ class VirtualCardController {
         return {"status": "error", "message": "The Transaction Pin is required."};
       }
 
-      // Call the API via the ApiService class
-      final response = await ApiService.postRequest("/user/vcards/block-unblock", {
-        'status': status,
-        'account_id': accountId,
-        'transaction_pin': transactionPin
-      });
+      final headers = await _getHeaders();
+      final response = await ApiService.postRequest(
+        "/user/vcards/block-unblock",
+        {
+          'status': status,
+          'account_id': accountId,
+          'transaction_pin': transactionPin
+        },
+        extraHeaders: headers
+      );
 
       print("response: ${response}");
 
@@ -132,12 +151,16 @@ class VirtualCardController {
         return {"status": "error", "message": "The Transaction Pin is required."};
       }
 
-      // Call the API via the ApiService class
-      final response = await ApiService.postRequest("/user/vcards/fund", {
-        'amount': amount,
-        'account_id': accountId,
-        'transaction_pin': transactionPin
-      });
+      final headers = await _getHeaders();
+      final response = await ApiService.postRequest(
+        "/user/vcards/fund",
+        {
+          'amount': amount,
+          'account_id': accountId,
+          'transaction_pin': transactionPin
+        },
+        extraHeaders: headers
+      );
 
       print("response: ${response}");
 
@@ -162,8 +185,11 @@ class VirtualCardController {
   /** ATTEMPT TO GET USER VIRTUAL CARD DETAILS **/
   static Future<Map<String, dynamic>> getVCardDetails() async {
 
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest("/user/vcards/card-details");
+    final headers = await _getHeaders();
+    final response = await ApiService.getRequest(
+      "/user/vcards/card-details",
+      extraHeaders: headers
+    );
     
     print("getVCardDetails: ${response}");
 
@@ -184,8 +210,11 @@ class VirtualCardController {
     required double amountInUSD,
   }) async {
 
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest("/user/vcards/rate?amount=${amountInUSD.toString()}");
+    final headers = await _getHeaders();
+    final response = await ApiService.getRequest(
+      "/user/vcards/rate?amount=${amountInUSD.toString()}",
+      extraHeaders: headers
+    );
     
     if (response.containsKey('status')) {
       if (response['status'] == 'success' && response.containsKey('message') && response.containsKey('data')) {

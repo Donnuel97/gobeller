@@ -39,6 +39,7 @@ class CacVerificationController with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      final appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No auth token.");
@@ -49,6 +50,7 @@ class CacVerificationController with ChangeNotifier {
 
       final headers = {
         'Authorization': 'Bearer $token',
+        'AppID': appId,
       };
 
       final response = await ApiService.getRequest(
@@ -86,6 +88,7 @@ class CacVerificationController with ChangeNotifier {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String? appId = prefs.getString('appId'); // <-- Get AppID
 
       if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +104,7 @@ class CacVerificationController with ChangeNotifier {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
         "Accept": "application/json",
+        if (appId != null) "AppID": appId, // <-- Add AppID to headers if present
       };
 
       final Map<String, dynamic> body = {

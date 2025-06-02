@@ -6,28 +6,29 @@ import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController {
+  // Add helper method to get headers with auth token and appId
+  static Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
 
+    return {
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'Accept': 'application/json',
+      'AppID': appId,
+    };
+  }
+
+  // Update fetchUserProfile
   static Future<Map<String, dynamic>?> fetchUserProfile() async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return null;
-      }
-
-      debugPrint("🔑 Token for profile fetch: $token");
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token',
-      };
-
-      final response = await ApiService.getRequest("/profile", extraHeaders: extraHeaders);
+      final headers = await _getHeaders();
+      final response = await ApiService.getRequest("/profile", extraHeaders: headers);
       debugPrint("🔹 User Profile API Response: $response");
 
       if (response["status"] == true) {
         final profileData = response["data"];
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('userProfileRaw', json.encode(profileData)); // Save raw
 
         final walletData = profileData["getPrimaryWallet"];
@@ -96,33 +97,17 @@ class ProfileController {
   static Future<String> changePassword(
       String currentPassword, String newPassword, String newPasswordConfirmation) async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token'); // Retrieve the authentication token
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return "Authentication required. Please log in again.";
-      }
-
-      // Print token to console
-      debugPrint("🔑 Token for password change: $token");
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token', // Include the token in the Authorization header
-      };
-
-      // Prepare request body
+      final headers = await _getHeaders();
       final Map<String, dynamic> body = {
         "current_password": currentPassword,
         "new_password": newPassword,
         "new_password_confirmation": newPasswordConfirmation,
       };
 
-      // Make the POST request to change the password
       final response = await ApiService.postRequest(
-        "/change-password", // Change password API endpoint
+        "/change-password",
         body,
-        extraHeaders: extraHeaders, // Include authorization headers
+        extraHeaders: headers,
       );
 
       debugPrint("🔹 Change Password API Response: $response");
@@ -139,48 +124,12 @@ class ProfileController {
   }
 
   // Fetch Customer Support Details
-  // static Future<Map<String, dynamic>?> fetchCustomerSupportDetails() async {
-  //   try {
-  //     final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //     final String? appId = prefs.getString('appId');
-  //
-  //     if (appId == null || appId.isEmpty) {
-  //       debugPrint("❌ AppID not found in SharedPreferences.");
-  //       return null;
-  //     }
-  //
-  //     final response = await ApiService.getRequest(
-  //       "/organizations/customer-support-details/$appId",
-  //     );
-  //
-  //     debugPrint("📞 Support API Response: $response");
-  //
-  //     if (response["status"] == true) {
-  //       final supportData = response["data"];
-  //       await prefs.setString('customerSupportDetails', json.encode(supportData)); // Save raw
-  //       return supportData;
-  //     } else {
-  //       debugPrint("⚠️ Failed to load support details: ${response["message"]}");
-  //       return null;
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Support API Error: $e");
-  //     return null;
-  //   }
-  // }
-
   static Future<Map<String, dynamic>?> fetchCustomerSupportDetails() async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? appId = prefs.getString('appId');
-
-      if (appId == null || appId.isEmpty) {
-        debugPrint("❌ AppID not found in SharedPreferences.");
-        return null;
-      }
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
-        "/organizations/customer-support-details/$appId",
+        "/organizations/customer-support-details",
+        extraHeaders: headers,
       );
 
       debugPrint("📞 Support API Response: $response");
@@ -189,6 +138,7 @@ class ProfileController {
         final supportData = response["data"];
 
         // Store raw support data
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('customerSupportRaw', json.encode(supportData));
 
         final address = supportData["address"] ?? {};
@@ -236,32 +186,16 @@ class ProfileController {
   // Change Transaction PIN
   static Future<String> changeTransactionPin(String currentPin, String newPin) async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token'); // Retrieve the authentication token
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return "Authentication required. Please log in again.";
-      }
-
-      // Print token to console
-      debugPrint("🔑 Token for transaction PIN change: $token");
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token', // Include the token in the Authorization header
-      };
-
-      // Prepare request body
+      final headers = await _getHeaders();
       final Map<String, dynamic> body = {
         "current_pin": currentPin,
         "new_pin": newPin,
       };
 
-      // Make the POST request to change the transaction PIN
       final response = await ApiService.postRequest(
-        "/change-transaction-pin", // Change transaction pin API endpoint
+        "/change-transaction-pin",
         body,
-        extraHeaders: extraHeaders, // Include authorization headers
+        extraHeaders: headers,
       );
 
       debugPrint("🔹 Change Transaction PIN API Response: $response");
@@ -281,23 +215,10 @@ class ProfileController {
   // Fetch All KYC Verifications
   static Future<List<Map<String, dynamic>>?> getKycVerifications() async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return null;
-      }
-
-      debugPrint("🔑 Token for KYC fetch: $token");
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token',
-      };
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
         "/customers/kyc-verifications",
-        extraHeaders: extraHeaders,
+        extraHeaders: headers,
       );
 
       debugPrint("🔹 KYC Verifications API Response: $response");
@@ -436,21 +357,10 @@ class ProfileController {
   // Fetch Wallets
   static Future<Map<String, dynamic>> fetchWallets() async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-
-      if (token == null) {
-        debugPrint("❌ No authentication token found. Please login again.");
-        return {};
-      }
-
-      final extraHeaders = {
-        'Authorization': 'Bearer $token',
-      };
-
+      final headers = await _getHeaders();
       final response = await ApiService.getRequest(
         "/customers/wallets",
-        extraHeaders: extraHeaders,
+        extraHeaders: headers,
       );
 
       debugPrint("🔹 Wallets Profile API Response: $response");

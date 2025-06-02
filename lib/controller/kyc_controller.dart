@@ -16,6 +16,7 @@ class KycVerificationController {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
@@ -25,6 +26,7 @@ class KycVerificationController {
       final extraHeaders = {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
+        'AppID': appId,
       };
 
       final body = {
@@ -62,6 +64,7 @@ class KycVerificationController {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('auth_token');
+      final String appId = prefs.getString('appId') ?? '';
 
       if (token == null) {
         debugPrint("❌ No authentication token found. Please login again.");
@@ -72,6 +75,7 @@ class KycVerificationController {
 
       final extraHeaders = {
         'Authorization': 'Bearer $token',
+        'AppID': appId,
       };
 
       final response = await ApiService.getRequest(

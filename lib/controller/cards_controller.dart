@@ -70,7 +70,9 @@ class VirtualCardController with ChangeNotifier {
       const endpoint = "/card-mgt/cards/virtual/list?page=1&items_per_page=20";
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
 
-      debugPrint("🔹 Virtual Cards API Response: $response");
+      print('fetchVirtualCards/ card_controller/');
+      print(response);
+      debugPrint("🔹fetchVirtualCards/ card_controller/ Virtual Cards API Response: $response");
 
       if (response["status"] == true &&
           response["data"] != null &&

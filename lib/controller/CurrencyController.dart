@@ -8,12 +8,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gobeller/utils/reusable_helpers.dart';
 
 class CurrencyController {
+  // Add this helper method at the top of the class
+  static Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
+    
+    return {
+      'Accept': 'application/json',
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'AppID': appId,
+    };
+  }
 
   // RETRIEVES USERS FX and CRYPTO CURRENCIES WALLETS
   static Future<Map<String, dynamic>> getUserWalletCollection() async {
-   
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest('/user/currency/balance');
+    final headers = await _getHeaders();
+    final response = await ApiService.getRequest(
+      '/user/currency/balance',
+      extraHeaders: headers
+    );
     
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return response['data'];
@@ -26,14 +40,16 @@ class CurrencyController {
 
   // RETRIEVES USERS FX CURRENCIES WALLETS
   static Future<Map<String, dynamic>> getUserFXWalletCollection({String currencyCode = ""}) async {
-    
+    final headers = await _getHeaders();
     String requestUrl = "/user/fx/currency/balance";
     if(currencyCode.isNotEmpty) {
       requestUrl += "/${currencyCode}";
     }
     
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest(requestUrl);
+    final response = await ApiService.getRequest(
+      requestUrl,
+      extraHeaders: headers
+    );
 
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return {'status':'success', 'data':response['data']};
@@ -46,15 +62,16 @@ class CurrencyController {
 
   // RETRIEVES USERS CRYPTO CURRENCIES WALLETS
   static Future<Map<String, dynamic>> getUserCryptoWalletCollection({String currencyCode = ""}) async {
-    
-    // String requestUrl = "/user/crypto/currency/balance";
+    final headers = await _getHeaders();
     String requestUrl = "/user/crypto/crypto/wallet-balance";
     if(currencyCode.isNotEmpty) {
       requestUrl += "/${currencyCode}";
     }
 
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest(requestUrl);
+    final response = await ApiService.getRequest(
+      requestUrl,
+      extraHeaders: headers
+    );
     
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return {'status':'success', 'data':response['data']};
@@ -68,9 +85,11 @@ class CurrencyController {
 
   // RETIRVES ALL FX CURRENCIES SUPPORTED BY SYSTEM
   static Future<Map<String, dynamic>> getAllSupportedFXCurrencies() async {
-    
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest("/user/fx/currency");
+    final headers = await _getHeaders();
+    final response = await ApiService.getRequest(
+      "/user/fx/currency",
+      extraHeaders: headers
+    );
 
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return {'status':'success', 'data':response['data']};
@@ -84,9 +103,11 @@ class CurrencyController {
 
   // RETIRVES ALL CRYTO CURRENCIES SUPPORTED BY SYSTE
   static Future<Map<String, dynamic>> getAllSupportedCryptoCurrencies() async {
-    
-    // Call the API via the ApiService class
-    final response = await ApiService.getRequest("/user/crypto/crypto/currencies");
+    final headers = await _getHeaders();
+    final response = await ApiService.getRequest(
+      "/user/crypto/crypto/currencies",
+      extraHeaders: headers
+    );
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return {'status':'success', 'data':response['data']};
     } else if(response.containsKey('status') && response['status']=='failed' && response.containsKey('error')) {
@@ -105,8 +126,12 @@ class CurrencyController {
       return {'status':'error', 'message':'Please select an FX currency'};
     }
     
-    // Call the Login API via the ApiService class
-    final response = await ApiService.postRequest("/user/fx/create-wallet", {'currency': currencyCode});
+    final headers = await _getHeaders();
+    final response = await ApiService.postRequest(
+      "/user/fx/create-wallet",
+      {'currency': currencyCode},
+      extraHeaders: headers
+    );
 
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('message')) {
       return {'status':'success', 'message':response['message']};
@@ -126,8 +151,12 @@ class CurrencyController {
       return {'status':'error', 'message':'Please select a crypto currency'};
     }
     
-    // Call the Login API via the ApiService class
-    final response = await ApiService.postRequest("/user/crypto/create/wallet", {'currency': currencyCode});
+    final headers = await _getHeaders();
+    final response = await ApiService.postRequest(
+      "/user/crypto/create/wallet",
+      {'currency': currencyCode},
+      extraHeaders: headers
+    );
 
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('message')) {
       return {'status':'success', 'message':response['message']};
@@ -167,12 +196,16 @@ class CurrencyController {
       return {"status": "error", "message": validationErrors};
     }
 
-    // Call the Login API via the ApiService class
-    final response = await ApiService.postRequest("/user/crypto/crypto/wallet/exchange", {
-      'from_currency': fromCurrency,
-      'symbol': symbol,
-      'amount': amount,
-    });
+    final headers = await _getHeaders();
+    final response = await ApiService.postRequest(
+      "/user/crypto/crypto/wallet/exchange",
+      {
+        'from_currency': fromCurrency,
+        'symbol': symbol,
+        'amount': amount,
+      },
+      extraHeaders: headers
+    );
 
     if(response.containsKey('status') && response['status']=='success' && response.containsKey('data')) {
       return {'status':'success', 'data':response['data']};

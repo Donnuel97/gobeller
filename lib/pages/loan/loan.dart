@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:ui';  // Add this import for ImageFilter
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gobeller/controller/loan_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'loan_balance.dart';
 import 'loan_calculator_screen.dart'; // adjust import
+import 'package:gobeller/utils/routes.dart'; // Add this import at the top
 
 // Ensure this exists
 
@@ -17,10 +20,12 @@ class LoanPage extends StatefulWidget {
   State<LoanPage> createState() => _LoanPageState();
 }
 
-class _LoanPageState extends State<LoanPage> {
+class _LoanPageState extends State<LoanPage> with SingleTickerProviderStateMixin {
   String? selectedLoanProduct;
   double? selectedLoanAmount;
   final TextEditingController _amountController = TextEditingController();
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   bool showLoanForm = false;
   bool showSummary = false;
@@ -34,7 +39,31 @@ class _LoanPageState extends State<LoanPage> {
   Color? _tertiaryColor;
   String? _logoUrl;
 
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrimaryColorAndLogo();
+      fetchLoanBalance();
+      Provider.of<LoanController>(context, listen: false).getEligibleLoanProducts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
 
   Future<void> _loadPrimaryColorAndLogo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -66,15 +95,6 @@ class _LoanPageState extends State<LoanPage> {
       } catch (_) {}
     }
   }
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPrimaryColorAndLogo();
-      fetchLoanBalance();
-      Provider.of<LoanController>(context, listen: false).getEligibleLoanProducts();
-    });
-  }
 
   Future<void> fetchLoanBalance() async {
     final loanController = Provider.of<LoanController>(context, listen: false);
@@ -102,54 +122,132 @@ class _LoanPageState extends State<LoanPage> {
   @override
   Widget build(BuildContext context) {
     final controller = Provider.of<LoanController>(context);
+    final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Loan"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.dashboard),
-            tooltip: 'Go to Dashboard',
-            onPressed: () {
-              Navigator.pushNamed(context, '/dashboard'); // or replaceNamed if needed
-            },
-          ),
-        ],
-      ),
-
+      backgroundColor: _tertiaryColor ?? const Color(0xFFF8FAFC),
+      appBar: _buildCustomAppBar(),
       body: SafeArea(
         child: controller.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height, // Ensure full height
-          color: _tertiaryColor ?? Theme.of(context).primaryColor,
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _loanBalanceCard(),
-                    const SizedBox(height: 16),
-                    const SizedBox(height: 24),
-                    _buildLoanProducts(controller.loanProducts),
-                  ],
+            ? Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor ?? Colors.blue),
+          ),
+        )
+            : FadeTransition(
+          opacity: _fadeAnimation,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWelcomeSection(),
+                      const SizedBox(height: 24),
+                      _buildLoanBalanceCard(),
+                      const SizedBox(height: 32),
+                      _buildLoanProductsHeader(),
+                    ],
+                  ),
                 ),
               ),
-            ),
+              _buildLoanProductsList(controller.loanProducts),
+            ],
           ),
         ),
       ),
     );
   }
 
+  PreferredSizeWidget _buildCustomAppBar() {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (_primaryColor ?? Colors.blue).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.attach_money_rounded,
+              color: _primaryColor ?? Colors.blue,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            "Loan Center",
+            style: GoogleFonts.poppins(
+              color: Colors.grey[800],
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            Icons.dashboard_rounded,
+            color: Colors.grey[700],
+            size: 24,
+          ),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, Routes.dashboard);
+          },
+          tooltip: 'Go to Dashboard',
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
 
-  Widget _loanBalanceCard() {
+  Widget _buildWelcomeSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            (_primaryColor ?? Colors.blue).withOpacity(0.05),
+            (_secondaryColor ?? Colors.blue.shade700).withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Quick Loans",
+            style: GoogleFonts.poppins(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Get instant access to flexible loan options tailored for you",
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoanBalanceCard() {
     final totalOutstanding = loanBalanceList.fold<num>(
       0,
           (sum, loan) => sum + (num.tryParse(loan['repayment_amount_per_cycle'].toString()) ?? 0),
@@ -160,211 +258,435 @@ class _LoanPageState extends State<LoanPage> {
           (sum, loan) => sum + (num.tryParse(loan['loan_amount'].toString()) ?? 0),
     );
 
-    // Get status from the first loan, fallback to "N/A"
     final String loanStatus = loanBalanceList.isNotEmpty
         ? (loanBalanceList.first['loan_status']?['label'] ?? 'N/A')
         : 'N/A';
 
     String formatCurrency(num amount) {
-      return "₦${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',')}";
+      return "₦${amount.toStringAsFixed(2).replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'),
+            (match) => ',',
+      )}";
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            (_primaryColor ?? Colors.blue).withOpacity(0.9),
+            (_secondaryColor ?? Colors.blue.shade700),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (_primaryColor ?? Colors.blue).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Column(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Loan Balance",
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        loanStatus,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  formatCurrency(totalDisbursed),
+                  style: GoogleFonts.poppins(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Outstanding Balance",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+                Text(
+                  formatCurrency(totalOutstanding),
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoanHistoryPage()),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.history, color: Colors.white, size: 20),
+                  label: Text(
+                    "My Loan",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Status: $loanStatus",
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
               ),
-              const SizedBox(height: 4),
               Text(
-                formatCurrency(totalDisbursed),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Outstanding Balance: ${formatCurrency(totalOutstanding)}",
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[800],
+                ),
               ),
             ],
           ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: () {
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoanProductsHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Available Loans",
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {},
+              icon: Icon(
+                Icons.filter_list,
+                color: _primaryColor ?? Colors.blue,
+                size: 20,
+              ),
+              label: Text(
+                "Filter",
+                style: GoogleFonts.poppins(
+                  color: _primaryColor ?? Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          "Select the best loan option for your needs",
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoanProductsList(List<Map<String, dynamic>> products) {
+    if (products.isEmpty) {
+      return SliverToBoxAdapter(
+        child: _buildEmptyState(),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.all(20),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildLoanProductCard(products[index]),
+          childCount: products.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/no_loans.png', // Add this image to your assets
+            height: 180,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "No Loan Products Available",
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Check back later for new loan offers",
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoanProductCard(Map<String, dynamic> product) {
+    final isSelected = selectedLoanProduct == product['id'];
+
+    String formatAmount(dynamic amount) {
+      if (amount == null) return "0";
+      final numValue = num.tryParse(amount.toString()) ?? 0;
+      return numValue.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'\B(?=(\d{3})+(?!\d))'),
+              (match) => ',');
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              selectedLoanProduct = product['id']?.toString();
+              _minAmount = double.tryParse(product['min_amount'].toString()) ?? 0.0;
+              _maxAmount = double.tryParse(product['max_amount'].toString()) ?? 0.0;
+              _selectedLoanAmount = _minAmount;
+              _amountController.text = _minAmount.toStringAsFixed(0);
+              showSummary = false;
+              showLoanForm = false;
+            });
+
+            if (selectedLoanProduct != null) {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const LoanHistoryPage()),
+                MaterialPageRoute(
+                  builder: (_) => LoanCalculatorPage(
+                    productId: selectedLoanProduct!,
+                    minAmount: _minAmount,
+                    maxAmount: _maxAmount,
+                    productName: product['product_name'] ?? 'Unknown Product',
+                  ),
+                ),
               );
-            },
-            icon: const Icon(Icons.history, color: Colors.blue),
-            label: const Text(
-              "My Loan",
-              style: TextStyle(color: Colors.blue),
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? (_primaryColor ?? Colors.blue)
+                    : Colors.grey.withOpacity(0.2),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
-
-  Widget _buildInfoRow(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500))),
-          Expanded(
-            flex: 4,
-            child: Text(value != null ? value.toString() : "N/A"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Existing buildLoanProducts code stays the same (pasted below again for completeness)
-  Widget _buildLoanProducts(List<Map<String, dynamic>> products) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Get Eligible Loan Products", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const SizedBox(height: 12),
-          if (products.isEmpty)
-            const Text("No loan products available at the moment.", style: TextStyle(color: Colors.grey))
-          else
-            Column(
-              children: products.map((product) {
-                final isSelected = selectedLoanProduct == product['id'];
-
-                String formatAmount(dynamic amount) {
-                  if (amount == null) return "0";
-                  final numValue = num.tryParse(amount.toString()) ?? 0;
-                  return numValue.toStringAsFixed(0).replaceAllMapped(
-                      RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
-                }
-
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      selectedLoanProduct = product['id']?.toString();
-
-                      _minAmount = double.tryParse(product['min_amount'].toString()) ?? 0.0;
-                      _maxAmount = double.tryParse(product['max_amount'].toString()) ?? 0.0;
-                      _selectedLoanAmount = _minAmount;
-                      _amountController.text = _minAmount.toStringAsFixed(0);
-
-                      showSummary = false;
-                      showLoanForm = false;
-                    });
-
-                    if (selectedLoanProduct != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LoanCalculatorPage(
-                            productId: selectedLoanProduct!,
-                            minAmount: _minAmount,
-                            maxAmount: _maxAmount,
-                            productName: product['product_name'] ?? 'Unknown Product',
-                          ),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please select a valid loan product")),
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.grey.shade300,
-                        width: 1.2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (_primaryColor ?? Colors.blue).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet,
+                        color: _primaryColor ?? Colors.blue,
+                        size: 24,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                product['product_name'] ?? '',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product['product_name'] ?? 'Unknown Product',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          if (product['description'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              product['description'],
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[600],
                               ),
                             ),
-                            if (isSelected) const Icon(Icons.check_circle, color: Colors.blue),
                           ],
-                        ),
-                        if (product['description'] != null) ...[
-                          const SizedBox(height: 4),
-                          Text(product['description'], style: const TextStyle(fontSize: 14)),
                         ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (_primaryColor ?? Colors.blue).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check_circle,
+                          color: _primaryColor ?? Colors.blue,
+                          size: 20,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        Icons.attach_money,
+                        "Amount Range",
+                        "₦${formatAmount(product['min_amount'])} - ₦${formatAmount(product['max_amount'])}",
+                        Colors.green,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildInfoRow(
+                        Icons.percent,
+                        "Interest Rate",
+                        "${product['interest_rate_pct']}%",
+                        Colors.orange,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildInfoRow(
+                        Icons.sync,
+                        "Interest Type",
+                        product['is_interest_rate_reoccuring'] == true
+                            ? "Recurring Interest"
+                            : "One-time Interest",
+                        Colors.purple,
+                      ),
+                      if (product['allow_internal_loan_rollover'] == true ||
+                          product['allow_external_loan_rollover'] == true) ...[
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 8,
-                          children: [
-                            _infoRow(Icons.attach_money, Colors.green,
-                                "₦${formatAmount(product['min_amount'])} - ₦${formatAmount(product['max_amount'])}"),
-                            _infoRow(Icons.percent, Colors.deepPurple,
-                                "Rate: ${product['interest_rate_pct']}%"),
-                            _infoRow(
-                              Icons.sync,
-                              Colors.orange,
-                              product['is_interest_rate_reoccuring'] == true
-                                  ? "Recurring Interest"
-                                  : "One-time Interest",
-                            ),
-                            _infoRow(
-                              Icons.repeat,
-                              Colors.blueGrey,
-                              "Rollover: " +
-                                  (product['allow_internal_loan_rollover'] == true ? "Internal" : "No") +
-                                  (product['allow_external_loan_rollover'] == true ? " & External" : ""),
-                            ),
-                          ],
+                        _buildInfoRow(
+                          Icons.repeat,
+                          "Rollover",
+                          (product['allow_internal_loan_rollover'] == true ? "Internal" : "") +
+                              (product['allow_external_loan_rollover'] == true ? " & External" : ""),
+                          Colors.blue,
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
-        ],
+          ),
+        ),
       ),
-    );
-  }
-
-  Widget _infoRow(IconData icon, Color color, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 14)),
-      ],
     );
   }
 }

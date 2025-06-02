@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:gobeller/controller/property_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import 'SubscriptionHistoryPage.dart';
 import 'package:gobeller/pages/property/property_history_page.dart';
@@ -16,16 +18,32 @@ class PropertyListPage extends StatefulWidget {
 }
 
 class _PropertyListPageState extends State<PropertyListPage> {
+  Color _primaryColor = const Color(0xFF2BBBA4); // Add default color
   String? selectedCategoryId;
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = Provider.of<PropertyController>(context, listen: false);
       controller.fetchProperties();
       controller.fetchPropertyCategories();
     });
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('appSettingsData');
+
+    if (settingsJson != null) {
+      final settings = json.decode(settingsJson)['data'];
+      final primaryColorHex = settings['customized-app-primary-color'] ?? '#2BBBA4';
+
+      setState(() {
+        _primaryColor = Color(int.parse(primaryColorHex.replaceAll('#', '0xFF')));
+      });
+    }
   }
 
   // Helper method to get the preferred image URL from property attachments
@@ -267,12 +285,18 @@ class _PropertyListPageState extends State<PropertyListPage> {
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blueAccent,
+                                      backgroundColor: _primaryColor,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
-                                    child: const Text("View Details"),
+                                    child: const Text(
+                                      "View Details",
+                                      style: TextStyle(
+                                        color: Colors.white, // Add this to make text white
+                                        fontWeight: FontWeight.w500, // Optional: add weight for better visibility
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],

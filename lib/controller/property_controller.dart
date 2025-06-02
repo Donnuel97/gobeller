@@ -34,9 +34,17 @@ class PropertyController with ChangeNotifier {
   // Cache for category details
   final Map<String, Map<String, dynamic>> _categoryCache = {};
 
-  Future<String?> _getAuthToken() async {
+  Future<Map<String, String>> _getHeaders() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    final String? token = prefs.getString('auth_token');
+    final String appId = prefs.getString('appId') ?? '';
+    
+    return {
+      'Authorization': token != null ? 'Bearer $token' : '',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'AppID': appId,
+    };
   }
 
   /// Fetches paginated property list from API
@@ -45,15 +53,9 @@ class PropertyController with ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/properties?page=$page";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
-
+      
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
       debugPrint("🏘️ Properties API Full Response: $response");
 
@@ -115,23 +117,20 @@ class PropertyController with ChangeNotifier {
   /// Fetches property categories with optimized caching
   Future<void> fetchPropertyCategories({bool forceRefresh = false}) async {
     if (!forceRefresh && _categories.isNotEmpty) {
-      return; // Use cached categories if available
+      return;
     }
 
     _isCategoriesLoading = true;
     notifyListeners();
 
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/property-categories";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
-
+      
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
+      print('fetchPropertyCategories');
+      print(headers);
+      print(response);
       debugPrint("📂 Property Categories API Response Status: ${response['status']}");
 
       if (response['status'] == true && response['data'] != null) {
@@ -216,15 +215,9 @@ class PropertyController with ChangeNotifier {
     }
 
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/properties/$propertyId";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
-
+      
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
       debugPrint("🏡 Property Details Response: $response");
 
@@ -258,16 +251,9 @@ class PropertyController with ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/property-subscriptions/initiate/request";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
+      
       final Map<String, dynamic> body = {
         "property_id": propertyId,
         "quantity": quantity,
@@ -317,16 +303,9 @@ class PropertyController with ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/property-subscriptions/process/request";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
+      
       final Map<String, dynamic> body = {
         "property_id": propertyId,
         "quantity": quantity,
@@ -365,16 +344,9 @@ class PropertyController with ChangeNotifier {
   /// Fetch subscription history for a specific property
   Future<Map<String, dynamic>?> fetchPropertySubscriptionHistory(String subscriptionId) async {
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/property-subscriptions/$subscriptionId";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
+      
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
       
       debugPrint("\n📜 Property Subscription Details:");
@@ -456,16 +428,9 @@ class PropertyController with ChangeNotifier {
   /// Fetch all property subscriptions
   Future<List<Map<String, dynamic>>> fetchAllPropertySubscriptions() async {
     try {
-      final token = await _getAuthToken();
-      if (token == null) throw Exception("No auth token");
-
+      final headers = await _getHeaders();
       final endpoint = "/properties-mgt/property-subscriptions";
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
+      
       final response = await ApiService.getRequest(endpoint, extraHeaders: headers);
       
       debugPrint("\n📜 All Property Subscriptions:");

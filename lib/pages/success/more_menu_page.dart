@@ -50,10 +50,7 @@ class _MoreMenuPageState extends State<MoreMenuPage> {
       setState(() {
         _menuItems = {
           ...?orgData['data']?['customized_app_displayable_menu_items'],
-          "display-corporate-account-menu": true,
-          "display-loan-request-menu": true,
-          "display-fix-deposit-menu": true,
-          "display-bnpl-menu": true,
+
         };
       });
     }
@@ -88,32 +85,41 @@ class _MoreMenuPageState extends State<MoreMenuPage> {
     final List<Widget> cards = [];
     int index = 0;
 
-    if (_menuItems['display-wallet-transfer-menu'] == true || _menuItems['display-bank-transfer-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.sync, label: "Transfer", route: Routes.bank_transfer, index: index++));
+    if (_menuItems['display-wallet-transfer-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.account_balance_wallet_outlined, label: "Wallet transfer", route: Routes.transfer, index: index++));
+    }
+
+    // Add individual bank transfer icon
+    if (_menuItems['display-bank-transfer-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.swap_horiz, label: "Other bank ", route: Routes.bank_transfer, index: index++));
+    }
+
+    if (_menuItems['display-loan-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.monetization_on_outlined, label: "Loans", route: Routes.loan, index: index++));
+    }
+    if (_menuItems['display-investment-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.fixed, index: index++));
+    }
+    if (_menuItems['display-buy-now-pay-later-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
+    }
+    if (_menuItems['display-data-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.electric_bolt, label: "Electricity", route: Routes.electric, index: index++));
     }
     if (_menuItems['display-airtime-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.phone_android, label: "Airtime", route: Routes.airtime, index: index++));
+      cards.add(_buildMenuCard(context, icon: Icons.phone_android_outlined, label: "Airtime", route: Routes.airtime, index: index++));
     }
     if (_menuItems['display-data-menu'] == true) {
       cards.add(_buildMenuCard(context, icon: Icons.wifi, label: "Data", route: Routes.data_purchase, index: index++));
     }
     if (_menuItems['display-cable-tv-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.tv, label: "Cable", route: Routes.cable_tv, index: index++));
-    }
-    if (_menuItems['display-electricity-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.lightbulb, label: "Electric", route: Routes.electric, index: index++));
-    }
-    if (_menuItems['display-loan-request-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.money, label: "Loan", route: Routes.loan, index: index++));
+      cards.add(_buildMenuCard(context, icon: Icons.tv_outlined, label: "Cable Tv", route: Routes.cable_tv, index: index++));
     }
     if (_menuItems['display-fix-deposit-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.candlestick_chart, label: "Fix Deposit", route: Routes.fx_soon, index: index++));
+      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "fixed deposit", route: Routes.fixed, index: index++));
     }
-    if (_menuItems['display-bnpl-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.real_estate_agent, label: "BNPL", route: Routes.borrow, index: index++));
-    }
-    if (_menuItems['display-fix-deposit-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.candlestick_chart, label: "Investment", route: Routes.fx_soon, index: index++));
+    if (_menuItems['display-corporate-account-menu'] == true) {
+      cards.add(_buildMenuCard(context, icon: Icons.business, label: "Corporate", route: Routes.corporate, index: index++));
     }
 
     // If we have 7 or more cards, replace the last visible one with "See More"

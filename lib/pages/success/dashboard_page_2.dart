@@ -75,7 +75,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ...?orgData['data']?['customized_app_displayable_menu_items'],
         // "display-corporate-account-menu": true,
         // "display-loan-menu": true,
-        "display-fx-menu": true,
+        // "display-fx-menu": true,
       };
 
       setState(() {
@@ -221,6 +221,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     balance: balance,
                     bankName: bankName,
                     hasWallet: hasWallet,
+                    backgroundColor: _primaryColor, // Pass primary color as background
                   ),
                   const SizedBox(height: 15),
                   const QuickActionsGrid(),
@@ -250,14 +251,16 @@ class AdCarousel extends StatefulWidget {
 }
 
 class _AdCarouselState extends State<AdCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1.0);  // Full-width PageView
+  final PageController _controller = PageController(viewportFraction: 1.0);
   int _currentIndex = 0;
   late Timer _timer;
 
   @override
   void initState() {
     super.initState();
-    _startAutoScroll();
+    if (widget.ads.isNotEmpty) {
+      _startAutoScroll();
+    }
   }
 
   void _startAutoScroll() {
@@ -278,106 +281,131 @@ class _AdCarouselState extends State<AdCarousel> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    if (widget.ads.isNotEmpty) {
+      _timer.cancel();
+    }
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.ads.isEmpty) return const SizedBox();
+    // If no ads, return an empty widget with no height
+    if (widget.ads.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 250,  // Increased height for full-width display
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: widget.ads.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              final ad = widget.ads[index];
-              return GestureDetector(
-                onTap: () {
-                  final url = ad['content_redirect_url'];
-                  debugPrint("🔗 Redirect to: $url");
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate adaptive heights based on screen width
+        final double screenWidth = constraints.maxWidth;
+        final double imageHeight = screenWidth * 0.4; // 40% of width for image
+        final double contentHeight = 80.0; // Fixed height for text content
+        final double totalHeight = imageHeight + contentHeight;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min, // Only take up needed space
+          children: [
+            SizedBox(
+              height: totalHeight,
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: widget.ads.length,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
                 },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                itemBuilder: (context, index) {
+                  final ad = widget.ads[index];
+                  return GestureDetector(
+                    onTap: () {
+                      final url = ad['content_redirect_url'];
+                      debugPrint("🔗 Redirect to: $url");
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          ad['banner_url'],
-                          width: double.infinity,
-                          height: 130,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.image_not_supported),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              ad['banner_url'],
+                              width: double.infinity,
+                              height: imageHeight,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  SizedBox(
+                                    height: imageHeight,
+                                    child: const Center(
+                                      child: Icon(Icons.image_not_supported),
+                                    ),
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            ad['subject'] ?? 'Ad Title',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            ad['content'] ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        ad['subject'] ?? 'Ad Title',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded( // NEW: ensures no overflow if text height increases
-                        child: Text(
-                          ad['content'] ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(widget.ads.length, (index) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: _currentIndex == index ? 20 : 8,
-              height: 8,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: _currentIndex == index ? Colors.blueAccent : Colors.grey,
-                borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                },
               ),
-            );
-          }),
-        ),
-      ],
+            ),
+            // Only show indicators if there are multiple ads
+            if (widget.ads.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(widget.ads.length, (index) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: _currentIndex == index ? 20 : 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: _currentIndex == index
+                            ? Colors.blueAccent
+                            : Colors.grey,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
