@@ -130,7 +130,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
       }
     }
     if (_menuItems['display-investment-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.fixed, index: index++));
+      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.fx_soon, index: index++));
     }
     if (_menuItems['display-buy-now-pay-later-menu'] == true) {
       cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
