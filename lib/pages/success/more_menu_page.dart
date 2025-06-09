@@ -77,50 +77,96 @@ class _MoreMenuPageState extends State<MoreMenuPage> {
       }
     }
 
-    _menuCards = _buildAllMenuCards();
+    _menuCards = await _buildAllMenuCards();
     setState(() {});
   }
 
-  List<Widget> _buildAllMenuCards() {
+  Future<List<Widget>> _buildAllMenuCards() async {
     final List<Widget> cards = [];
     int index = 0;
 
-    if (_menuItems['display-wallet-transfer-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_wallet_outlined, label: "Wallet transfer", route: Routes.transfer, index: index++));
+    // Get organization features
+    final prefs = await SharedPreferences.getInstance();
+    final orgJson = prefs.getString('organizationData');
+    bool isVtuEnabled = false;
+    bool isFixedDepositEnabled = false;
+    bool isLoanEnabled = false;
+    bool isInvestmentEnabled = false;
+    bool isBNPLEnabled = false;
+    bool isCustomerMgtEnabled = false;
+
+    if (orgJson != null) {
+      final orgData = json.decode(orgJson);
+      isVtuEnabled = orgData['data']?['organization_subscribed_features']?['vtu-mgt'] ?? false;
+      isFixedDepositEnabled = orgData['data']?['organization_subscribed_features']?['fixed-deposit-mgt'] ?? false;
+      isLoanEnabled = orgData['data']?['organization_subscribed_features']?['loan-mgt'] ?? false;
+      isInvestmentEnabled = orgData['data']?['organization_subscribed_features']?['investment-mgt'] ?? false;
+      isBNPLEnabled = orgData['data']?['organization_subscribed_features']?['properties-mgt'] ?? false;
+      isCustomerMgtEnabled = orgData['data']?['organization_subscribed_features']?['customers-mgt'] ?? false;
+    }
+    // Add individual wallet transfer icon
+
+
+    if (isCustomerMgtEnabled) {
+      if (_menuItems['display-wallet-transfer-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.account_balance_wallet_outlined, label: "Wallet transfer", route: Routes.transfer, index: index++));
+      }
+
+      // Add individual bank transfer icon
+      if (_menuItems['display-bank-transfer-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.swap_horiz, label: "Other bank ", route: Routes.bank_transfer, index: index++));
+      }
+
+      if (_menuItems['display-corporate-account-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.business, label: "Corporate", route: Routes.corporate, index: index++));
+      }
+    }
+    // Only show VTU-related menus if vtu-mgt is enabled
+    if (isVtuEnabled) {
+      if (_menuItems['display-electricity-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.electric_bolt, label: "Electricity", route: Routes.electric, index: index++));
+      }
+      if (_menuItems['display-airtime-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.phone_android_outlined, label: "Airtime", route: Routes.airtime, index: index++));
+      }
+      if (_menuItems['display-data-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.wifi, label: "Data", route: Routes.data_purchase, index: index++));
+      }
+      if (_menuItems['display-cable-tv-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.tv_outlined, label: "Cable Tv", route: Routes.cable_tv, index: index++));
+      }
     }
 
-    // Add individual bank transfer icon
-    if (_menuItems['display-bank-transfer-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.swap_horiz, label: "Other bank ", route: Routes.bank_transfer, index: index++));
+    // Only show loan if enabled
+    if (isLoanEnabled) {
+      if (_menuItems['display-loan-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.monetization_on_outlined, label: "Loans", route: Routes.loan, index: index++));
+      }
     }
 
-    if (_menuItems['display-loan-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.monetization_on_outlined, label: "Loans", route: Routes.loan, index: index++));
+    // Only show Investment if enabled
+    if (isInvestmentEnabled) {
+      if (_menuItems['display-investment-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.investment, index: index++));
+      }
     }
-    if (_menuItems['display-investment-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.fixed, index: index++));
+
+    // Only show BNLP if enabled
+    if (isBNPLEnabled) {
+      if (_menuItems['display-buy-now-pay-later-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
+      }
     }
-    if (_menuItems['display-buy-now-pay-later-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
+
+
+    // Only show fixed deposit menu if fixed-deposit-mgt is enabled
+    if (isFixedDepositEnabled) {
+      if (_menuItems['display-fixed-deposit-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "fixed deposit", route: Routes.fixed, index: index++));
+      }
     }
-    if (_menuItems['display-data-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.electric_bolt, label: "Electricity", route: Routes.electric, index: index++));
-    }
-    if (_menuItems['display-airtime-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.phone_android_outlined, label: "Airtime", route: Routes.airtime, index: index++));
-    }
-    if (_menuItems['display-data-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.wifi, label: "Data", route: Routes.data_purchase, index: index++));
-    }
-    if (_menuItems['display-cable-tv-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.tv_outlined, label: "Cable Tv", route: Routes.cable_tv, index: index++));
-    }
-    if (_menuItems['display-fix-deposit-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "fixed deposit", route: Routes.fixed, index: index++));
-    }
-    if (_menuItems['display-corporate-account-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.business, label: "Corporate", route: Routes.corporate, index: index++));
-    }
+
+
 
     // If we have 7 or more cards, replace the last visible one with "See More"
     

@@ -11,6 +11,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../controller/create_wallet_controller.dart';
 import '../../controller/kyc_controller.dart';
 import '../../pages/navigation/base_layout.dart';
+import '../auth/forgot_password_page.dart'; // Import the Forgot Password page
 
 
 class LoginPage extends StatefulWidget {
@@ -431,6 +432,27 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
 
                     const SizedBox(height: 16),
+
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordPage(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF667EEA),
+                      ),
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
 
                     TextButton(
                       onPressed: () =>

@@ -12,6 +12,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 
+import '../webview/register_webview.dart';
+
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
 
@@ -157,30 +159,30 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
               SafeArea(
                 child: isLoading
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Loading...',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading...',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
                         ),
-                      )
+                      ),
+                    ],
+                  ),
+                )
                     : hasError
-                        ? _buildErrorState(context)
-                        : _buildMainContent(
-                            context,
-                            logoUrl,
-                            welcomeTitle,
-                            welcomeDescription,
-                            primaryColor,
-                          ),
+                    ? _buildErrorState(context)
+                    : _buildMainContent(
+                  context,
+                  logoUrl,
+                  welcomeTitle,
+                  welcomeDescription,
+                  primaryColor,
+                ),
               ),
             ],
           ),
@@ -190,12 +192,12 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
   }
 
   Widget _buildMainContent(
-    BuildContext context,
-    String? logoUrl,
-    String welcomeTitle,
-    String welcomeDescription,
-    Color primaryColor,
-  ) {
+      BuildContext context,
+      String? logoUrl,
+      String welcomeTitle,
+      String welcomeDescription,
+      Color primaryColor,
+      ) {
     return Column(
       children: [
         Expanded(
@@ -284,6 +286,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                     text: "Login",
                     isOutlined: true,
                     onPressed: () => Navigator.pushNamed(context, Routes.login),
+                    customColor: primaryColor, // Add this
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -292,7 +295,23 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                     context: context,
                     text: "Register",
                     isOutlined: false,
-                    onPressed: () => Navigator.pushNamed(context, Routes.register),
+                    onPressed: () {
+                      final orgController = Provider.of<OrganizationController>(context, listen: false);
+                      final orgData = orgController.organizationData?['data'] ?? {};
+                      final identityCode = orgData['org_identity_code'] ?? '';
+
+                      if (identityCode == '0053') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterWebView(),
+                          ),
+                        );
+                      } else {
+                        Navigator.pushNamed(context, Routes.register);
+                      }
+                    },
+                    customColor: primaryColor, // Add this
                   ),
                 ),
               ],
@@ -308,7 +327,10 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
     required String text,
     required bool isOutlined,
     required VoidCallback onPressed,
+    Color? customColor, // Add this parameter
   }) {
+    final color = customColor ?? Theme.of(context).primaryColor;
+
     return Container(
       height: 55,
       decoration: BoxDecoration(
@@ -316,16 +338,16 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
         boxShadow: isOutlined
             ? null
             : [
-                BoxShadow(
-                  color: Theme.of(context).primaryColor.withOpacity(0.8),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+          BoxShadow(
+            color: color.withOpacity(0.8),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Material(
         borderRadius: BorderRadius.circular(30),
-        color: isOutlined ? Colors.transparent : Theme.of(context).primaryColor,
+        color: isOutlined ? Colors.transparent : color,
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
           onTap: onPressed,
@@ -333,12 +355,12 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
             padding: const EdgeInsets.symmetric(vertical: 15),
             decoration: isOutlined
                 ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Theme.of(context).primaryColor,
-                      width: 2,
-                    ),
-                  )
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: color,
+                width: 2,
+              ),
+            )
                 : null,
             child: Text(
               text,
@@ -346,9 +368,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: isOutlined
-                    ? Theme.of(context).primaryColor
-                    : Colors.white,
+                color: isOutlined ? color : Colors.white,
               ),
             ),
           ),
@@ -358,6 +378,12 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
   }
 
   Widget _buildErrorState(BuildContext context) {
+    // Get the OrganizationController to access app settings
+    final orgController = Provider.of<OrganizationController>(context, listen: false);
+    final settings = orgController.appSettingsData?['data'] ?? {};
+    final primaryColorHex = settings['customized-app-primary-color'] ?? '#6200EE';
+    final primaryColor = parseColor(primaryColorHex, fallbackHex: '#6200EE');
+
     return Center(
       child: FadeInUp(
         duration: const Duration(milliseconds: 1000),
@@ -401,6 +427,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                     _hasRetried = false;
                   });
                 },
+                customColor: primaryColor, // Now primaryColor is defined
               ),
             ],
           ),

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'controller/forgot_password_controller.dart';
+import 'controller/investment_controller.dart';
 import 'utils/routes.dart';
 import 'provider/dark_mode_provider.dart';
 import 'controller/airtime_controller.dart';
@@ -17,6 +19,7 @@ import 'controller/cards_controller.dart';
 import 'controller/loan_controller.dart';
 import 'controller/CacVerificationController.dart';
 import 'controller/property_controller.dart';
+import 'controller/fixed_deposit_controller.dart';
 import 'utils/navigator_key.dart';
 import 'themes/color_schemes.dart';
 import 'themes/input_decoration_theme.dart';
@@ -87,7 +90,10 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (context) => VirtualCardController()),
         ChangeNotifierProvider(create: (context) => CacVerificationController()),
         ChangeNotifierProvider(create: (context) => LoanController()),
-        ChangeNotifierProvider(create: (context) => PropertyController())
+        ChangeNotifierProvider(create: (context) => PropertyController()),
+        ChangeNotifierProvider(create: (context) => FixedDepositController()),
+        ChangeNotifierProvider(create: (_) => ForgotPasswordController(),),
+        ChangeNotifierProvider(create: (_) => InvestmentController(),),
       ],
       child: Consumer<DarkModeProvider>(
         builder: (context, darkMode, child) {

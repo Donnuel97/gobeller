@@ -7,8 +7,6 @@ import 'package:gobeller/const/const_ui.dart';
 import 'package:gobeller/controller/registration_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
@@ -20,6 +18,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   bool _isPasswordObscured = true;
   bool _isConfirmPasswordObscured = true;
+  bool _isTransactionPinObscured = true; // Add this line
   bool _isTermsAccepted = false;
 
   final TextEditingController _idNumberController = TextEditingController();
@@ -40,13 +39,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _showFullForm = false;
   bool _hasPopulatedFields = false;
 
-
-
   Color? _primaryColor;
   Color? _secondaryColor;
   Color? _tertiaryColor;
   String? _logoUrl;  // Variable to store the logo URL
-
 
   // Fetch the primary color and logo URL from SharedPreferences
   Future<void> _loadPrimaryColorAndLogo() async {
@@ -473,8 +469,18 @@ class _RegistrationPageState extends State<RegistrationPage> {
           controller: _transactionPinController,
           keyboardType: TextInputType.number,
           maxLength: 4,
+          obscureText: _isTransactionPinObscured,
           style: const TextStyle(color: Colors.black),
-          decoration: inputDecoration("Transaction Pin"),
+          decoration: inputDecoration(
+            "Transaction Pin",
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isTransactionPinObscured ? Icons.visibility_off : Icons.visibility,
+                color: Colors.black,
+              ),
+              onPressed: () => setState(() => _isTransactionPinObscured = !_isTransactionPinObscured),
+            ),
+          ),
           validator: (value) {
             if (value == null || value.length != 4) return "Enter a 4-digit PIN";
             if (int.tryParse(value) == null) return "Only digits allowed";

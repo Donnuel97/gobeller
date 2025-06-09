@@ -384,10 +384,78 @@ class _DashboardPageState extends State<DashboardPage> {
             }
 
             if (snapshot.hasError || snapshot.data == null) {
+              // Get the error message from the response if available
+              String errorMessage = '';
+              if (snapshot.error is Map) {
+                final errorResponse = snapshot.error as Map;
+                errorMessage = errorResponse['message'] ?? 'Unknown error occurred';
+              } else {
+                errorMessage = snapshot.error.toString();
+              }
+
               return Center(
-                child: Text(
-                  'Failed to load profile',
-                  style: GoogleFonts.poppins(),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.engineering_rounded,  // Maintenance icon
+                        color: _primaryColor ?? _defaultPrimaryColor,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'System Maintenance',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Text(
+                          errorMessage,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _userProfileFuture = ProfileController.fetchUserProfile();
+                          });
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 20),
+                        label: const Text('Try Again'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor ?? _defaultPrimaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }

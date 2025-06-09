@@ -20,6 +20,7 @@ import 'package:gobeller/pages/loan/loan_form.dart';
 import 'package:gobeller/pages/loan/loan_summary.dart';
 import 'package:gobeller/pages/fixed_deposit/fixed_deposit.dart';
 import 'package:gobeller/pages/fixed_deposit/fixed_form.dart';
+import 'package:gobeller/pages/investment/investment_screen.dart';
 
 import 'package:gobeller/pages/coming_soon/corp_soon.dart';
 import 'package:gobeller/pages/coming_soon/fx_soon.dart';
@@ -73,6 +74,7 @@ class Routes {
   static const String loan_summary = '/loan_summary';
   static const String borrow = '/borrow';
   static const String more_menu = '/more_menu';
+  static const String investment = '/investment';
 
   static Map<String, Widget Function(BuildContext)> routes = {
     initial: (context) => const WelcomePage(),
@@ -104,7 +106,8 @@ class Routes {
     loan: (context) => const LoanPage(),
     borrow: (context) => const PropertyListPage(),
     loan_summary: (context) => LoanSummaryPage(),
-    fixed: (context) => FixedDepositPage(),
+    fixed: (context) => FixedDepositScreen(),
+    investment: (context) => InvestmentScreen(),
     fixed_form: (context) => CreatePlanPage(),
     card_details: (context) {
       final card = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;

@@ -26,7 +26,7 @@ class ProfileController {
       final response = await ApiService.getRequest("/profile", extraHeaders: headers);
       debugPrint("🔹 User Profile API Response: $response");
 
-      if (response["status"] == true) {
+      if (response["status"] == true && response["data"] != null) {
         final profileData = response["data"];
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('userProfileRaw', json.encode(profileData)); // Save raw
@@ -85,11 +85,27 @@ class ProfileController {
         return userProfile;
       } else {
         debugPrint("⚠️ Error fetching profile: ${response["message"]}");
-        return null;
+        // Instead of returning null, throw the error response
+        throw {
+          'status': response["status"],
+          'message': response["message"] ?? 'Failed to load profile',
+          'data': response["data"]
+        };
       }
     } catch (e) {
       debugPrint("❌ Profile API Error: $e");
-      return null;
+      
+      // If it's already a response map (from our throw above), rethrow it
+      if (e is Map<String, dynamic>) {
+        throw e;
+      }
+      
+      // Otherwise wrap the error in our standard format
+      throw {
+        'status': false,
+        'message': e.toString(),
+        'data': null
+      };
     }
   }
 

@@ -84,30 +84,42 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
     final List<Widget> cards = [];
     int index = 0;
 
-    // Add individual wallet transfer icon
-    if (_menuItems['display-wallet-transfer-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_wallet_outlined, label: "Wallet transfer", route: Routes.transfer, index: index++));
-    }
-
-    // Add individual bank transfer icon
-    if (_menuItems['display-bank-transfer-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.swap_horiz, label: "Other bank ", route: Routes.bank_transfer, index: index++));
-    }
-
     // Get organization features
     final prefs = await SharedPreferences.getInstance();
     final orgJson = prefs.getString('organizationData');
     bool isVtuEnabled = false;
     bool isFixedDepositEnabled = false;
     bool isLoanEnabled = false;
+    bool isInvestmentEnabled = false;
+    bool isBNPLEnabled = false;
+    bool isCustomerMgtEnabled = false;
 
     if (orgJson != null) {
       final orgData = json.decode(orgJson);
       isVtuEnabled = orgData['data']?['organization_subscribed_features']?['vtu-mgt'] ?? false;
       isFixedDepositEnabled = orgData['data']?['organization_subscribed_features']?['fixed-deposit-mgt'] ?? false;
       isLoanEnabled = orgData['data']?['organization_subscribed_features']?['loan-mgt'] ?? false;
+      isInvestmentEnabled = orgData['data']?['organization_subscribed_features']?['investment-mgt'] ?? false;
+      isBNPLEnabled = orgData['data']?['organization_subscribed_features']?['properties-mgt'] ?? false;
+      isCustomerMgtEnabled = orgData['data']?['organization_subscribed_features']?['customers-mgt'] ?? false;
     }
+    // Add individual wallet transfer icon
 
+
+    if (isCustomerMgtEnabled) {
+      if (_menuItems['display-wallet-transfer-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.account_balance_wallet_outlined, label: "Wallet transfer", route: Routes.transfer, index: index++));
+      }
+
+      // Add individual bank transfer icon
+      if (_menuItems['display-bank-transfer-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.swap_horiz, label: "Other bank ", route: Routes.bank_transfer, index: index++));
+      }
+
+      if (_menuItems['display-corporate-account-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.business, label: "Corporate", route: Routes.corporate, index: index++));
+      }
+    }
     // Only show VTU-related menus if vtu-mgt is enabled
     if (isVtuEnabled) {
       if (_menuItems['display-electricity-menu'] == true) {
@@ -124,27 +136,36 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
       }
     }
 
+    // Only show loan if enabled
     if (isLoanEnabled) {
       if (_menuItems['display-loan-menu'] == true) {
         cards.add(_buildMenuCard(context, icon: Icons.monetization_on_outlined, label: "Loans", route: Routes.loan, index: index++));
       }
     }
-    if (_menuItems['display-investment-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.fixed, index: index++));
+
+    // Only show Investment if enabled
+    if (isInvestmentEnabled) {
+      if (_menuItems['display-investment-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "Investment", route: Routes.investment, index: index++));
+      }
     }
-    if (_menuItems['display-buy-now-pay-later-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
+
+    // Only show BNLP if enabled
+    if (isBNPLEnabled) {
+      if (_menuItems['display-buy-now-pay-later-menu'] == true) {
+        cards.add(_buildMenuCard(context, icon: Icons.card_giftcard_outlined, label: "BNPL", route: Routes.borrow, index: index++));
+      }
     }
+
+
     // Only show fixed deposit menu if fixed-deposit-mgt is enabled
     if (isFixedDepositEnabled) {
-      if (_menuItems['display-fix-deposit-menu'] == true) {
+      if (_menuItems['display-fixed-deposit-menu'] == true) {
         cards.add(_buildMenuCard(context, icon: Icons.account_balance_outlined, label: "fixed deposit", route: Routes.fixed, index: index++));
       }
     }
     
-    if (_menuItems['display-corporate-account-menu'] == true) {
-      cards.add(_buildMenuCard(context, icon: Icons.business, label: "Corporate", route: Routes.corporate, index: index++));
-    }
+
 
     // If we have 7 or more cards, replace the last visible one with "See More"
     if (cards.length >= 7) {
@@ -168,8 +189,7 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
         String? route,
         required int index,
       }) {
-    final color = index % 2 == 0 ? _primaryColor : _secondaryColor;
-
+    // Remove the alternating color logic and use only _primaryColor
     return GestureDetector(
       onTap: () async {
         if (label == "Corporate Account") {
@@ -208,10 +228,10 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8), // Reduced from 12 to 8
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10), // Optional: reduced from 12 to 10
+              borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.1),
@@ -222,15 +242,15 @@ class _QuickActionsGridState extends State<QuickActionsGrid> {
             ),
             child: Icon(
               icon,
-              color: color,
-              size: 20, // Reduced from 24 to 20
+              color: _primaryColor, // Changed to always use _primaryColor
+              size: 20,
             ),
           ),
-          const SizedBox(height: 4), // Reduced from 8 to 4
+          const SizedBox(height: 4),
           Text(
             label,
             style: GoogleFonts.poppins(
-              fontSize: 10, // Reduced from 12 to 10
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
